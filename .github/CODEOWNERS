@@ -1,0 +1,16 @@
+# Replace @YOUR_GITHUB_USERNAME with your actual GitHub username.
+
+# Default owner for the repository
+* @tech-shansong
+
+# Core backend
+/backend/ @tech-shansong
+
+# Simulator and scenarios
+/simulator/ @tech-shansong
+/scenarios/ @tech-shansong
+/vehicle_profiles/ @tech-shansong
+
+# Documentation and community files
+/docs/ @tech-shansong
+/.github/ @tech-shansong
