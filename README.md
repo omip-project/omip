@@ -1,76 +1,147 @@
-# OMIP Starter v0.5.3
+<div align="center">
 
-**Environment-Aware Motion and Obstacle Interaction**
+# Open Mission Intelligence Platform
 
-OMIP v0.5.3 extends v0.5.1 with vehicle-specific safety envelopes, nearest-obstacle analysis, collision-risk estimates and basic obstacle-aware simulation trajectories. The existing acquisition, MQTT, integrity, monitoring, storage, Vehicle Profile and Environment Context features remain available.
+### Mission data infrastructure for heterogeneous autonomous vehicles
 
-> The obstacle interaction and avoidance functions are research and simulation features. They are not certified collision-avoidance or vehicle-control software.
+**OMIP** is an open-source platform for mission management, telemetry integration,
+environmental context modelling, replay, integrity monitoring, safety analytics,
+and research across heterogeneous autonomous vehicles.
 
-## Main v0.5.3 capabilities
+[Getting Started](#quick-start) ·
+[Architecture](#architecture) ·
+[Documentation](#documentation) ·
+[Roadmap](ROADMAP.md) ·
+[Contributing](CONTRIBUTING.md)
 
-- UGV, UAV, AUV and USV safety envelopes derived from Vehicle Profile geometry.
-- Static and dynamic obstacle position evaluation.
-- Point, circle, sphere, box and polygon distance handling.
-- Nearest-obstacle centre distance and signed clearance.
-- Relative closing speed and linear time-to-collision estimate.
-- Risk levels: `CLEAR`, `CAUTION`, `WARNING`, `CRITICAL`, `COLLISION`.
-- Vehicle-specific basic avoidance:
-  - UGV and USV: lateral avoidance;
-  - UAV: primarily vertical avoidance;
-  - AUV: lateral avoidance while preserving depth constraints.
-- `OBSTACLE_AVOIDANCE` vehicle operating mode.
-- Persistent `obstacle_interactions` records.
-- Mission obstacle-interaction summaries.
-- Automatic Mission Events for avoidance entry or elevated collision risk.
-- Dashboard risk panel and safety-envelope overlay.
-- Obstacle interaction data included in Complete Mission ZIP exports.
+</div>
 
-## Quick start on Windows
+---
+
+> [!IMPORTANT]
+> OMIP is currently a research and simulation platform. Its obstacle interaction,
+> avoidance, integrity, and safety functions are not certified vehicle-control
+> or collision-avoidance systems.
+
+## Why OMIP?
+
+Autonomous platforms often use different vehicle models, sensors, communication
+protocols, mission formats, and environmental representations. OMIP provides a
+common data and operational layer that can collect, normalise, store, replay,
+inspect, and export mission information across multiple vehicle domains.
+
+OMIP is designed to complement—not replace—vehicle control frameworks such as
+ROS 2, Autoware, PX4, ArduPilot, and specialised marine robotics systems.
+
+## Supported vehicle domains
+
+| Domain | OMIP type | Current modelling |
+|---|---|---|
+| Uncrewed ground vehicle | `GROUND_VEHICLE` | Planar motion, vehicle footprint, steering and safety limits |
+| Uncrewed aerial vehicle | `UAV` | Three-dimensional motion, altitude limits and wind fields |
+| Autonomous underwater vehicle | `AUV` | Depth-aware motion, current fields and underwater constraints |
+| Uncrewed surface vessel | `USV` | Surface motion, channels, wind and water-current effects |
+
+## Current capabilities
+
+- Vehicle and Sensor Registry
+- Mission lifecycle management
+- HTTP and MQTT telemetry acquisition
+- Raw sensor-message preservation
+- Normalised telemetry model
+- Vehicle Profiles and type-specific parameters
+- Scenario and Environment Context management
+- Obstacles, constraints, wind and current fields
+- Mission Environment Snapshots
+- Multi-vehicle simulation
+- Obstacle interaction and conservative avoidance
+- Constraint-violation and near-miss analytics
+- Data-integrity monitoring and operational alerts
+- Historical replay and three-axis trajectory views
+- CSV, JSONL and complete Mission ZIP exports
+- Storage, backup, retention and system-health tools
+
+## Architecture
+
+```text
+Vehicles / Simulators
+        │
+        ├── HTTP
+        └── MQTT
+             │
+             ▼
+      Acquisition Layer
+             │
+     ┌───────┴────────┐
+     ▼                ▼
+Raw Message Store   Normalisation
+                         │
+                         ▼
+                 Unified Telemetry
+                         │
+          ┌──────────────┼──────────────┐
+          ▼              ▼              ▼
+      Mission Data   Environment     Integrity &
+      and Replay     Context         Safety Analytics
+          │              │              │
+          └──────────────┼──────────────┘
+                         ▼
+                  Dashboard / API
+                         │
+                         ▼
+               Export / Dataset / Research
+```
+
+## Repository structure
+
+```text
+omip/
+├── backend/             FastAPI backend and data services
+├── simulator/           Multi-vehicle and multi-sensor simulator
+├── vehicle_profiles/    Built-in vehicle profile definitions
+├── scenarios/           Reproducible mission and environment scenarios
+├── tests/               Automated test suite
+├── scripts/             Windows and shell utilities
+├── docker/              Mosquitto and deployment configuration
+├── docs/                Architecture, API and user documentation
+├── sample_data/         Example telemetry and sensor messages
+├── docker-compose.yml
+├── README.md
+├── VERSION
+└── LICENSE
+```
+
+## Quick start
+
+### Requirements
+
+- Python 3.11 or later
+- Windows PowerShell or Command Prompt
+- Docker Desktop only when using the bundled MQTT Broker
+
+### Start the backend
 
 ```powershell
-cd E:\PHD\OMIP\v0.5.3\OMIP_Starter_v0.5.3
+git clone https://github.com/omip-project/omip.git
+cd omip
 .\scripts\run_backend.cmd
 ```
 
-Open:
+Open the Dashboard:
 
 ```text
 http://127.0.0.1:8000
 ```
 
-API documentation:
+Open the API documentation:
 
 ```text
 http://127.0.0.1:8000/docs
 ```
 
-Press `Ctrl+F5` the first time the upgraded Dashboard is opened.
+### Start a simulation
 
-## Start from the Dashboard
-
-In **Create Simulation** select:
-
-1. Vehicle ID;
-2. Vehicle type;
-3. Vehicle Profile;
-4. an obstacle-avoidance Scenario;
-5. duration and transport;
-6. **Start simulation**.
-
-Recommended v0.5.3 demonstration Scenarios:
-
-```text
-ugv_active_avoidance
-uav_vertical_avoidance
-auv_lateral_avoidance
-usv_dynamic_crossing
-```
-
-The **Obstacle Interaction and Collision Risk** panel displays the nearest obstacle, clearance, TTC, safety radius and avoidance state.
-
-## Command-line examples
-
-### UGV lateral avoidance
+Use **Create Simulation** in the Dashboard, or run:
 
 ```powershell
 .\scripts\run_simulator.cmd `
@@ -78,157 +149,89 @@ The **Obstacle Interaction and Collision Risk** panel displays the nearest obsta
   --vehicle-type GROUND_VEHICLE `
   --vehicle-profile ugv-small-ackermann-v1 `
   --scenario .\scenarios\ugv_active_avoidance.json `
-  --duration 45
+  --duration 60
 ```
 
-### UAV vertical avoidance
+## Reproducible missions
 
-```powershell
-.\scripts\run_simulator.cmd `
-  --vehicle-id OMIP-UAV-001 `
-  --vehicle-type UAV `
-  --vehicle-profile uav-quadrotor-research-v1 `
-  --scenario .\scenarios\uav_vertical_avoidance.json `
-  --duration 35
-```
+Each simulation run records:
 
-### AUV lateral avoidance under current
+- vehicle type and profile version;
+- effective parameter values;
+- scenario and environment version;
+- random seed;
+- immutable Mission Environment Snapshot;
+- telemetry, raw messages, events, violations and safety results.
 
-```powershell
-.\scripts\run_simulator.cmd `
-  --vehicle-id OMIP-AUV-001 `
-  --vehicle-type AUV `
-  --vehicle-profile auv-research-thruster-v1 `
-  --scenario .\scenarios\auv_lateral_avoidance.json `
-  --duration 45
-```
+This makes OMIP suitable for repeatable software tests and research experiments.
 
-### USV and moving obstacle
+## Documentation
 
-```powershell
-.\scripts\run_simulator.cmd `
-  --vehicle-id OMIP-USV-001 `
-  --vehicle-type USV `
-  --vehicle-profile usv-small-catamaran-v1 `
-  --scenario .\scenarios\usv_dynamic_crossing.json `
-  --duration 45
-```
+Current documentation is available in [`docs/`](docs/).
 
-## Obstacle-avoidance Scenario configuration
+Planned public documentation areas include:
 
-```json
-{
-  "obstacle_avoidance": {
-    "enabled": true,
-    "lookahead_s": 4.0,
-    "clearance_margin_m": 0.8,
-    "maximum_offset_m": 5.0
-  }
-}
-```
+- Getting Started
+- Architecture
+- Core Data Model
+- Vehicle Profiles
+- Missions and Telemetry
+- Environment Context
+- Simulator
+- REST API and MQTT
+- Deployment
+- Tutorials
+- Research extensions
 
-The settings are stored in the editable Scenario and copied into the immutable Mission Environment Snapshot.
+## Project status
 
-## Safety envelope
+OMIP is under active development. Public APIs and schemas may change before the
+Community Edition 1.0 release.
 
-The baseline safety radius is derived from Vehicle Profile geometry:
+The current codebase should be treated as an early community and research
+preview.
 
-```text
-body radius + safety margin
-```
+## Roadmap
 
-For planar UGV/USV vehicles, the body radius uses the horizontal footprint diagonal. For UAV/AUV vehicles, the larger of the horizontal radius and half-height is used. The resulting envelope is deliberately conservative.
+See [`ROADMAP.md`](ROADMAP.md).
 
-## Main v0.5.3 API
+Near-term priorities:
 
-```text
-GET /api/v1/missions/{mission_id}/obstacle-interactions
-GET /api/v1/missions/{mission_id}/obstacle-summary
-GET /api/v1/vehicles/{vehicle_id}/obstacle-status
-```
+1. Open-source repository foundation and project governance
+2. Reproducible local Docker deployment
+3. Documentation website
+4. Stable public data contracts
+5. Python SDK
+6. Mission analytics and dataset management
+7. Research modules for trajectory understanding and causal explanation
 
-Optional filters:
+## Contributing
 
-```text
-/api/v1/missions/{mission_id}/obstacle-interactions?risk_level=WARNING&limit=500
-```
+Contributions will be welcomed after the Foundation repository structure and
+contribution workflow are finalised.
 
-## Mission export
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the initial development process.
 
-The Complete Mission ZIP now includes:
+## Security
 
-```text
-mission.json
-environment.json
-obstacle-interactions.json
-quality.json
-events.json
-integrity-events.json
-integrity-metrics.json
-alerts.json
-telemetry.csv
-telemetry.jsonl
-raw-messages.csv
-raw-messages.jsonl
-```
+Please do not disclose suspected vulnerabilities in public issues. Follow
+[`SECURITY.md`](SECURITY.md) once the security-reporting process is published.
 
-## Upgrade from v0.5.1
+## Citation
 
-Stop the old backend, then copy the database:
+A `CITATION.cff` file will be included as part of OMIP Foundation v1.0 to make
+the platform easier to cite in academic work.
 
-```powershell
-Copy-Item `
-  E:\PHD\OMIP\v0.5.1\OMIP_Starter_v0.5.1\backend\omip_v051.db `
-  E:\PHD\OMIP\v0.5.3\OMIP_Starter_v0.5.3\backend\omip_v052.db
-```
+## License
 
-At startup OMIP automatically creates:
+OMIP Core is released under the [MIT License](LICENSE).
 
-```text
-obstacle_interactions
-obstacle_interaction_state
-```
+---
 
-It also adds `obstacle_avoidance_json` to the Scenario table when upgrading an existing database.
+<div align="center">
 
-## Tests
+**Open Mission Intelligence Platform — OMIP**
 
-```powershell
-.\scripts\run_tests.cmd
-```
+Built for open, reproducible and vehicle-independent mission research.
 
-The v0.5.3 test suite covers existing platform features plus safety-envelope calculation, obstacle interaction persistence, API summaries and vehicle-specific trajectory changes.
-
-## Current boundary
-
-v0.5.3 uses conservative geometric monitoring and a deterministic avoidance trajectory generator. It does not yet provide:
-
-- path-search algorithms such as A*, RRT* or Hybrid A*;
-- Model Predictive Control;
-- certified collision avoidance;
-- multi-agent negotiation;
-- full constraint-violation analytics;
-- inference of unknown obstacles from observed trajectories.
-
-The next recommended release is **v0.5.3 — Constraint-Aware Mission Analytics and Interaction Visualisation**.
-
-
-## v0.5.3 safety patch
-
-Candidate avoidance paths are now checked against every active obstacle. The simulator can expand the configured offset, choose an alternate direction, or stop/hold when no safe candidate exists. See `docs/COLLISION_FREE_AVOIDANCE_SAFETY_PATCH.md`.
-
-
-## v0.5.3 safety analytics
-
-This release adds a Constraint Evaluation Engine and near-miss analytics.
-
-New APIs:
-
-- `GET /api/v1/missions/{mission_id}/constraint-violations`
-- `GET /api/v1/missions/{mission_id}/constraint-summary`
-- `GET /api/v1/vehicles/{vehicle_id}/constraint-status`
-- `GET /api/v1/missions/{mission_id}/near-misses`
-- `GET /api/v1/missions/{mission_id}/safety-summary`
-
-The complete Mission package now includes `constraint-violations.json`,
-`near-misses.json`, and `safety-summary.json`.
+</div>
