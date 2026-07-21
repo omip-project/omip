@@ -1,0 +1,84 @@
+{
+  "scenario_id": "uav_vertical_avoidance",
+  "name": "UAV vertical obstacle avoidance",
+  "description": "A quadrotor follows a low-amplitude route toward a spherical obstacle and climbs over it while remaining below the altitude ceiling.",
+  "coordinate_frame": "LOCAL_ENU",
+  "default_duration_s": 35,
+  "sensor_rates_hz": {
+    "GNSS": 8.0,
+    "IMU": 30.0,
+    "BATTERY": 1.0,
+    "VEHICLE_STATUS": 4.0
+  },
+  "motion": {
+    "forward_speed_mps": 2.2,
+    "lateral_amplitude_m": 0.0,
+    "lateral_period_s": 30.0,
+    "vertical_amplitude_m": 0.2,
+    "vertical_period_s": 40.0,
+    "battery_drain_percent_per_s": 0.035
+  },
+  "obstacle_avoidance": {
+    "enabled": true,
+    "lookahead_s": 4.0,
+    "clearance_margin_m": 1.0,
+    "maximum_offset_m": 8.0,
+    "automatic_offset_expansion": true,
+    "hard_offset_limit_m": 24.0
+  },
+  "quality": {
+    "position_noise_std_m": 0.02,
+    "confidence": 0.99
+  },
+  "faults": {},
+  "obstacles": [
+    {
+      "obstacle_id": "UAV-ACTIVE-OBS-001",
+      "name": "Suspended inspection volume",
+      "obstacle_type": "UNKNOWN_OBJECT",
+      "geometry": {
+        "geometry_type": "SPHERE",
+        "position": {
+          "x_m": 30.0,
+          "y_m": 0.0,
+          "z_m": 8.0
+        },
+        "radius_m": 3.0
+      },
+      "applies_to_vehicle_types": [
+        "UAV"
+      ]
+    }
+  ],
+  "constraints": [
+    {
+      "constraint_id": "UAV-ACTIVE-MAXALT",
+      "name": "Altitude ceiling",
+      "constraint_type": "MAXIMUM_ALTITUDE",
+      "value": 22.0,
+      "unit": "m",
+      "severity": "MANDATORY",
+      "applies_to_vehicle_types": [
+        "UAV"
+      ]
+    }
+  ],
+  "external_fields": [
+    {
+      "field_id": "UAV-ACTIVE-WIND",
+      "name": "Light crosswind",
+      "field_type": "WIND",
+      "coordinate_frame": "LOCAL_ENU",
+      "vector": {
+        "x": 0.0,
+        "y": -0.08,
+        "z": 0.0,
+        "unit": "m/s"
+      },
+      "unit": "m/s",
+      "applies_to_vehicle_types": [
+        "UAV"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "name": "gnss_dropout",
+  "description": "GNSS is unavailable for eight seconds while IMU, battery and status messages continue.",
+  "default_duration_s": 45,
+  "random_seed": 3004,
+  "sensor_rates_hz": {
+    "GNSS": 5.0,
+    "IMU": 20.0,
+    "BATTERY": 1.0,
+    "VEHICLE_STATUS": 2.0
+  },
+  "motion": {
+    "forward_speed_mps": 1.3,
+    "lateral_amplitude_m": 8.0,
+    "lateral_period_s": 22.0,
+    "secondary_amplitude_m": 1.5,
+    "secondary_period_s": 6.0,
+    "vertical_amplitude_m": 0.1,
+    "vertical_period_s": 28.0,
+    "battery_drain_percent_per_s": 0.03
+  },
+  "quality": {
+    "position_noise_std_m": 0.04,
+    "confidence": 0.96
+  },
+  "faults": {
+    "gnss_dropout_start_s": 15.0,
+    "gnss_dropout_duration_s": 8.0,
+    "timestamp_delay_s": 0.1
+  },
+  "annotations": []
+}

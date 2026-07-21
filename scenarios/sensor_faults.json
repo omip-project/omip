@@ -1,0 +1,42 @@
+{
+  "name": "sensor_faults",
+  "description": "Mixed data-quality faults including invalid frames, IMU spikes, duplicate attempts and out-of-order sequence numbers.",
+  "default_duration_s": 50,
+  "random_seed": 3005,
+  "sensor_rates_hz": {
+    "GNSS": 5.0,
+    "IMU": 20.0,
+    "BATTERY": 1.0,
+    "VEHICLE_STATUS": 2.0
+  },
+  "motion": {
+    "forward_speed_mps": 1.5,
+    "lateral_amplitude_m": 12.0,
+    "lateral_period_s": 28.0,
+    "secondary_amplitude_m": 2.8,
+    "secondary_period_s": 8.0,
+    "vertical_amplitude_m": 0.25,
+    "vertical_period_s": 35.0,
+    "battery_drain_percent_per_s": 0.05,
+    "return_to_base_at_s": 38.0
+  },
+  "quality": {
+    "position_noise_std_m": 0.12,
+    "confidence": 0.88
+  },
+  "faults": {
+    "invalid_every_n": 37,
+    "imu_noise_spike_every_n": 113,
+    "duplicate_every_n": 149,
+    "out_of_order_every_n": 79,
+    "timestamp_delay_s": 0.35
+  },
+  "annotations": [
+    {
+      "event_type": "RETURN_TO_BASE",
+      "start_s": 38.0,
+      "severity": "INFO",
+      "description": "Vehicle operating mode changes to RETURN_TO_BASE."
+    }
+  ]
+}

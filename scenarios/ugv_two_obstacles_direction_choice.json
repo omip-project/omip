@@ -1,0 +1,67 @@
+{
+  "scenario_id": "ugv_two_obstacles_direction_choice",
+  "name": "UGV two-obstacle direction choice",
+  "default_duration_s": 35,
+  "motion": {
+    "forward_speed_mps": 2.0,
+    "lateral_amplitude_m": 0.0,
+    "secondary_amplitude_m": 0.0,
+    "vertical_amplitude_m": 0.0
+  },
+  "obstacle_avoidance": {
+    "enabled": true,
+    "lookahead_s": 8.0,
+    "clearance_margin_m": 0.9,
+    "maximum_offset_m": 6.0,
+    "automatic_offset_expansion": true,
+    "hard_offset_limit_m": 14.0
+  },
+  "sensor_rates_hz": {
+    "GNSS": 5,
+    "IMU": 20,
+    "BATTERY": 1,
+    "VEHICLE_STATUS": 2
+  },
+  "quality": {},
+  "faults": {},
+  "obstacles": [
+    {
+      "obstacle_id": "CENTER-BLOCK",
+      "name": "Centre obstacle",
+      "obstacle_type": "STATIC_OBSTACLE",
+      "enabled": true,
+      "geometry": {
+        "geometry_type": "CIRCLE",
+        "position": {
+          "x_m": 20,
+          "y_m": 0,
+          "z_m": 0
+        },
+        "radius_m": 2.5
+      },
+      "applies_to_vehicle_types": [
+        "GROUND_VEHICLE"
+      ]
+    },
+    {
+      "obstacle_id": "LEFT-BLOCK",
+      "name": "Left-side blocker",
+      "obstacle_type": "STATIC_OBSTACLE",
+      "enabled": true,
+      "geometry": {
+        "geometry_type": "CIRCLE",
+        "position": {
+          "x_m": 20,
+          "y_m": 5.5,
+          "z_m": 0
+        },
+        "radius_m": 2.2
+      },
+      "applies_to_vehicle_types": [
+        "GROUND_VEHICLE"
+      ]
+    }
+  ],
+  "constraints": [],
+  "external_fields": []
+}

@@ -1,0 +1,62 @@
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./docker/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      OMIP_DATABASE_PATH: /data/omip_v052.db
+      OMIP_STORAGE_DIR: /data/storage
+      OMIP_EXPORT_DIR: /data/storage/exports
+      OMIP_BACKUP_DIR: /data/storage/backups
+      OMIP_MQTT_ENABLED: "true"
+      OMIP_MQTT_HOST: mosquitto
+      OMIP_MQTT_PORT: "1883"
+      OMIP_PUBLIC_API_BASE: http://backend:8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - omip_data:/data
+    depends_on:
+      - mosquitto
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health')"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  simulator:
+    build:
+      context: .
+      dockerfile: docker/simulator.Dockerfile
+    depends_on:
+      backend:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+    command:
+      - python
+      - simulator/multi_sensor_simulator.py
+      - --api-base
+      - http://backend:8000
+      - --transport
+      - mqtt
+      - --mqtt-host
+      - mosquitto
+      - --vehicle-type
+      - GROUND_VEHICLE
+      - --vehicle-profile
+      - ugv-small-ackermann-v1
+      - --scenario
+      - scenarios/multi_sensor_nominal.json
+      - --duration
+      - "60"
+
+volumes:
+  omip_data:

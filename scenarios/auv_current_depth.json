@@ -1,0 +1,21 @@
+{
+  "scenario_id": "auv_current_depth",
+  "name": "AUV current and depth constraints",
+  "description": "Underwater mission with current, seabed structure and depth limits.",
+  "coordinate_frame": "LOCAL_ENU",
+  "default_duration_s": 120,
+  "sensor_rates_hz": {"GNSS": 5.0, "IMU": 20.0, "BATTERY": 1.0, "VEHICLE_STATUS": 2.0},
+  "motion": {"forward_speed_mps": 1.3, "lateral_amplitude_m": 8.0, "lateral_period_s": 32.0, "secondary_amplitude_m": 2.0, "secondary_period_s": 10.0, "vertical_amplitude_m": 7.0, "vertical_period_s": 40.0, "battery_drain_percent_per_s": 0.03},
+  "quality": {"position_noise_std_m": 0.04, "confidence": 0.97},
+  "faults": {},
+  "obstacles": [
+    {"obstacle_id": "AUV-OBS-PIPE-001", "name": "Subsea pipeline", "obstacle_type": "UNDERWATER_STRUCTURE", "geometry": {"geometry_type": "BOX", "position": {"x_m": 48.0, "y_m": 2.0, "z_m": -18.0}, "length_m": 12.0, "width_m": 3.0, "height_m": 3.0}, "applies_to_vehicle_types": ["AUV"]}
+  ],
+  "constraints": [
+    {"constraint_id": "AUV-CON-MAXDEPTH-001", "name": "Maximum operating depth", "constraint_type": "MAXIMUM_DEPTH", "value": 28.0, "unit": "m", "severity": "MANDATORY", "applies_to_vehicle_types": ["AUV"], "required_capabilities": ["supports_depth_control"]},
+    {"constraint_id": "AUV-CON-MINDEPTH-001", "name": "Minimum submergence", "constraint_type": "MINIMUM_DEPTH", "value": 5.0, "unit": "m", "severity": "RECOMMENDED", "applies_to_vehicle_types": ["AUV"]}
+  ],
+  "external_fields": [
+    {"field_id": "AUV-FIELD-CURRENT-001", "name": "Cross current", "field_type": "OCEAN_CURRENT", "coordinate_frame": "LOCAL_ENU", "vector": {"x": 0.15, "y": 0.32, "z": 0.0, "unit": "m/s"}, "unit": "m/s", "applies_to_vehicle_types": ["AUV"]}
+  ]
+}

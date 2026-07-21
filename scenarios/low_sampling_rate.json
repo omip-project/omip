@@ -1,0 +1,35 @@
+{
+  "name": "low_sampling_rate",
+  "description": "GNSS is registered at 5 Hz but transmits at 1.25 Hz so the v0.4.1 rate monitor can open and later recover a LOW_SAMPLING_RATE alert.",
+  "default_duration_s": 24,
+  "random_seed": 4101,
+  "sensor_rates_hz": {
+    "GNSS": 5.0,
+    "IMU": 20.0,
+    "BATTERY": 1.0,
+    "VEHICLE_STATUS": 2.0
+  },
+  "motion": {
+    "forward_speed_mps": 1.4,
+    "lateral_amplitude_m": 8.0,
+    "lateral_period_s": 24.0,
+    "secondary_amplitude_m": 1.8,
+    "secondary_period_s": 7.0,
+    "vertical_amplitude_m": 1.0,
+    "vertical_period_s": 20.0,
+    "battery_drain_percent_per_s": 0.03
+  },
+  "quality": {"position_noise_std_m": 0.04, "confidence": 0.97},
+  "faults": {
+    "sensor_rate_multipliers": {"GNSS": 0.25}
+  },
+  "annotations": [
+    {
+      "event_type": "LOW_SAMPLING_RATE",
+      "start_s": 0.0,
+      "end_s": 24.0,
+      "severity": "WARNING",
+      "description": "GNSS publishes at one quarter of its registered sampling rate."
+    }
+  ]
+}

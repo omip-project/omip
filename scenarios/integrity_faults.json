@@ -1,0 +1,42 @@
+{
+  "name": "integrity_faults",
+  "description": "Short demonstration scenario for OMIP v0.4 sequence gaps, duplicate messages and out-of-order data.",
+  "default_duration_s": 20,
+  "random_seed": 4010,
+  "sensor_rates_hz": {
+    "GNSS": 5.0,
+    "IMU": 10.0,
+    "BATTERY": 1.0,
+    "VEHICLE_STATUS": 2.0
+  },
+  "motion": {
+    "forward_speed_mps": 1.4,
+    "lateral_amplitude_m": 8.0,
+    "lateral_period_s": 24.0,
+    "secondary_amplitude_m": 1.8,
+    "secondary_period_s": 7.0,
+    "vertical_amplitude_m": 1.5,
+    "vertical_period_s": 20.0,
+    "battery_drain_percent_per_s": 0.03
+  },
+  "quality": {
+    "position_noise_std_m": 0.05,
+    "confidence": 0.96
+  },
+  "faults": {
+    "gnss_dropout_start_s": 5.0,
+    "gnss_dropout_duration_s": 2.5,
+    "duplicate_every_n": 20,
+    "out_of_order_every_n": 15,
+    "timestamp_delay_s": 0.1
+  },
+  "annotations": [
+    {
+      "event_type": "GNSS_DROPOUT",
+      "start_s": 5.0,
+      "end_s": 7.5,
+      "severity": "WARNING",
+      "description": "Intentional GNSS transmission gap used to exercise the v0.4 integrity engine."
+    }
+  ]
+}

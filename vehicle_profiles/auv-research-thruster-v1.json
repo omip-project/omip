@@ -1,0 +1,39 @@
+{
+  "profile_id": "auv-research-thruster-v1",
+  "profile_name": "Research Thruster AUV",
+  "vehicle_type": "AUV",
+  "schema_version": "1.0",
+  "description": "Medium research AUV with INS/DVL navigation and thruster propulsion.",
+  "capabilities": {
+    "supports_3d_motion": true,
+    "supports_reverse": true,
+    "supports_station_keeping": true,
+    "supports_depth_control": true,
+    "supports_altitude_control": false,
+    "supports_autonomous_navigation": true
+  },
+  "parameters": {
+    "geometry": {
+      "length_m": 2.2,
+      "width_m": 0.55,
+      "height_m": 0.55,
+      "safety_margin_m": 0.75
+    },
+    "kinematics": {
+      "maximum_speed_mps": 2.4,
+      "maximum_ascent_rate_mps": 0.7,
+      "maximum_descent_rate_mps": 0.9
+    },
+    "dynamics": {
+      "maximum_pitch_deg": 30.0,
+      "drag_coefficient": 0.42
+    },
+    "energy": {
+      "battery_capacity_wh": 5200.0
+    },
+    "operational_limits": {
+      "maximum_depth_m": 300.0,
+      "minimum_return_battery_percent": 20.0
+    }
+  }
+}

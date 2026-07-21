@@ -1,0 +1,37 @@
+{
+  "name": "combined_timing_faults",
+  "description": "Combined v0.4.1 demonstration with low GNSS rate, latency spikes, timestamp regression and future timestamps.",
+  "default_duration_s": 30,
+  "random_seed": 4104,
+  "sensor_rates_hz": {"GNSS": 5.0, "IMU": 20.0, "BATTERY": 1.0, "VEHICLE_STATUS": 2.0},
+  "motion": {
+    "forward_speed_mps": 1.4,
+    "lateral_amplitude_m": 8.0,
+    "lateral_period_s": 24.0,
+    "secondary_amplitude_m": 1.8,
+    "secondary_period_s": 7.0,
+    "vertical_amplitude_m": 1.0,
+    "vertical_period_s": 20.0,
+    "battery_drain_percent_per_s": 0.03
+  },
+  "quality": {"position_noise_std_m": 0.05, "confidence": 0.96},
+  "faults": {
+    "sensor_rate_multipliers": {"GNSS": 0.4},
+    "timing_fault_sensor_types": ["GNSS"],
+    "delay_every_n_messages": 12,
+    "delay_ms": 1200,
+    "timestamp_regression_every_n_messages": 20,
+    "timestamp_regression_ms": 2500,
+    "future_timestamp_every_n_messages": 35,
+    "future_timestamp_ms": 11000
+  },
+  "annotations": [
+    {
+      "event_type": "COMBINED_TIMING_INTEGRITY_FAULTS",
+      "start_s": 0.0,
+      "end_s": 30.0,
+      "severity": "CRITICAL",
+      "description": "Multiple timing and rate anomalies are injected into the GNSS stream."
+    }
+  ]
+}

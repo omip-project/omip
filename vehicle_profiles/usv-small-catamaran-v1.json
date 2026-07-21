@@ -1,0 +1,37 @@
+{
+  "profile_id": "usv-small-catamaran-v1",
+  "profile_name": "Small Catamaran USV",
+  "vehicle_type": "USV",
+  "schema_version": "1.0",
+  "description": "Small electric catamaran for inland and sheltered-water missions.",
+  "capabilities": {
+    "supports_3d_motion": false,
+    "supports_reverse": true,
+    "supports_station_keeping": true,
+    "supports_depth_control": false,
+    "supports_altitude_control": false,
+    "supports_autonomous_navigation": true
+  },
+  "parameters": {
+    "geometry": {
+      "length_m": 2.4,
+      "width_m": 1.35,
+      "height_m": 0.75,
+      "safety_margin_m": 0.6,
+      "draft_m": 0.25
+    },
+    "kinematics": {
+      "maximum_speed_mps": 5.0,
+      "maximum_reverse_speed_mps": 1.2
+    },
+    "dynamics": {
+      "maximum_turn_rate_deg_s": 35.0
+    },
+    "energy": {
+      "battery_capacity_wh": 4500.0
+    },
+    "operational_limits": {
+      "maximum_wave_height_m": 0.8
+    }
+  }
+}

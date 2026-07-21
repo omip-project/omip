@@ -1,0 +1,28 @@
+{
+  "name": "high_message_rate",
+  "description": "High-throughput simulator scenario for v0.4.2 ingestion and runtime-metric testing.",
+  "default_duration_s": 30,
+  "random_seed": 4202,
+  "sensor_rates_hz": {
+    "GNSS": 30.0,
+    "IMU": 80.0,
+    "BATTERY": 5.0,
+    "VEHICLE_STATUS": 10.0
+  },
+  "motion": {
+    "forward_speed_mps": 2.0,
+    "lateral_amplitude_m": 8.0,
+    "lateral_period_s": 18.0,
+    "secondary_amplitude_m": 1.5,
+    "secondary_period_s": 5.0,
+    "vertical_amplitude_m": 1.0,
+    "vertical_period_s": 20.0,
+    "battery_drain_percent_per_s": 0.03
+  },
+  "quality": {
+    "position_noise_std_m": 0.02,
+    "confidence": 0.99
+  },
+  "faults": {},
+  "annotations": []
+}

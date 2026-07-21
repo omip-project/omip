@@ -1,0 +1,28 @@
+{
+  "name": "multi_sensor_nominal",
+  "description": "Nominal four-sensor acquisition run with GNSS, IMU, battery and vehicle status streams.",
+  "default_duration_s": 60,
+  "random_seed": 3003,
+  "sensor_rates_hz": {
+    "GNSS": 5.0,
+    "IMU": 20.0,
+    "BATTERY": 1.0,
+    "VEHICLE_STATUS": 2.0
+  },
+  "motion": {
+    "forward_speed_mps": 1.4,
+    "lateral_amplitude_m": 10.0,
+    "lateral_period_s": 24.0,
+    "secondary_amplitude_m": 2.0,
+    "secondary_period_s": 7.0,
+    "vertical_amplitude_m": 0.2,
+    "vertical_period_s": 30.0,
+    "battery_drain_percent_per_s": 0.02
+  },
+  "quality": {
+    "position_noise_std_m": 0.02,
+    "confidence": 0.99
+  },
+  "faults": {},
+  "annotations": []
+}

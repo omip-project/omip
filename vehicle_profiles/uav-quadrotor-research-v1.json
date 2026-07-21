@@ -1,0 +1,39 @@
+{
+  "profile_id": "uav-quadrotor-research-v1",
+  "profile_name": "Research Quadrotor UAV",
+  "vehicle_type": "UAV",
+  "schema_version": "1.0",
+  "description": "Four-rotor research UAV with full three-dimensional motion.",
+  "capabilities": {
+    "supports_3d_motion": true,
+    "supports_reverse": true,
+    "supports_station_keeping": true,
+    "supports_depth_control": false,
+    "supports_altitude_control": true,
+    "supports_autonomous_navigation": true
+  },
+  "parameters": {
+    "geometry": {
+      "length_m": 0.65,
+      "width_m": 0.65,
+      "height_m": 0.25,
+      "safety_margin_m": 0.5
+    },
+    "kinematics": {
+      "maximum_speed_mps": 12.0,
+      "maximum_climb_rate_mps": 4.0,
+      "maximum_descent_rate_mps": 3.0
+    },
+    "dynamics": {
+      "maximum_yaw_rate_deg_s": 90.0
+    },
+    "energy": {
+      "battery_capacity_wh": 220.0,
+      "hover_power_w": 420.0
+    },
+    "operational_limits": {
+      "maximum_altitude_m": 120.0,
+      "maximum_wind_speed_mps": 10.0
+    }
+  }
+}

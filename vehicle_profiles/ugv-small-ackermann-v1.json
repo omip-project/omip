@@ -1,0 +1,38 @@
+{
+  "profile_id": "ugv-small-ackermann-v1",
+  "profile_name": "Small Ackermann UGV",
+  "vehicle_type": "GROUND_VEHICLE",
+  "schema_version": "1.0",
+  "description": "Compact research ground vehicle with Ackermann steering.",
+  "capabilities": {
+    "supports_3d_motion": false,
+    "supports_reverse": true,
+    "supports_station_keeping": false,
+    "supports_depth_control": false,
+    "supports_altitude_control": false,
+    "supports_autonomous_navigation": true
+  },
+  "parameters": {
+    "geometry": {
+      "length_m": 1.6,
+      "width_m": 0.9,
+      "height_m": 0.7,
+      "safety_margin_m": 0.35
+    },
+    "kinematics": {
+      "maximum_speed_mps": 4.0,
+      "minimum_turning_radius_m": 2.5,
+      "maximum_steering_angle_deg": 32.0
+    },
+    "dynamics": {
+      "maximum_acceleration_mps2": 1.8,
+      "maximum_deceleration_mps2": 4.5
+    },
+    "energy": {
+      "battery_capacity_wh": 2200.0
+    },
+    "operational_limits": {
+      "maximum_slope_deg": 18.0
+    }
+  }
+}

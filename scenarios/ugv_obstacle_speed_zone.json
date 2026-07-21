@@ -1,0 +1,63 @@
+{
+  "scenario_id": "ugv_obstacle_speed_zone",
+  "name": "UGV obstacle and speed zone",
+  "description": "Ground vehicle environment with two static obstacles, a mandatory speed limit and a mission boundary.",
+  "coordinate_frame": "LOCAL_ENU",
+  "default_duration_s": 90,
+  "sensor_rates_hz": {"GNSS": 5.0, "IMU": 20.0, "BATTERY": 1.0, "VEHICLE_STATUS": 2.0},
+  "motion": {
+    "forward_speed_mps": 3.2,
+    "lateral_amplitude_m": 7.0,
+    "lateral_period_s": 28.0,
+    "secondary_amplitude_m": 1.5,
+    "secondary_period_s": 9.0,
+    "vertical_amplitude_m": 0.0,
+    "battery_drain_percent_per_s": 0.025
+  },
+  "quality": {"position_noise_std_m": 0.02, "confidence": 0.99},
+  "faults": {},
+  "obstacles": [
+    {
+      "obstacle_id": "UGV-OBS-001",
+      "name": "Road works barrier",
+      "obstacle_type": "STATIC_OBSTACLE",
+      "geometry": {"geometry_type": "CIRCLE", "position": {"x_m": 35.0, "y_m": 4.0, "z_m": 0.0}, "radius_m": 2.5},
+      "applies_to_vehicle_types": ["GROUND_VEHICLE"]
+    },
+    {
+      "obstacle_id": "UGV-OBS-002",
+      "name": "Parked vehicle",
+      "obstacle_type": "STATIC_OBSTACLE",
+      "geometry": {"geometry_type": "BOX", "position": {"x_m": 58.0, "y_m": -3.0, "z_m": 0.0}, "length_m": 4.5, "width_m": 2.0, "height_m": 1.6},
+      "applies_to_vehicle_types": ["GROUND_VEHICLE"]
+    }
+  ],
+  "constraints": [
+    {
+      "constraint_id": "UGV-CON-SPEED-001",
+      "name": "Site speed limit",
+      "constraint_type": "SPEED_LIMIT",
+      "value": 2.0,
+      "unit": "m/s",
+      "severity": "MANDATORY",
+      "applies_to_vehicle_types": ["GROUND_VEHICLE"]
+    },
+    {
+      "constraint_id": "UGV-CON-BOUNDARY-001",
+      "name": "Test track boundary",
+      "constraint_type": "MISSION_BOUNDARY",
+      "geometry": {
+        "geometry_type": "POLYGON",
+        "points": [
+          {"x_m": -5.0, "y_m": -15.0, "z_m": 0.0},
+          {"x_m": 160.0, "y_m": -15.0, "z_m": 0.0},
+          {"x_m": 160.0, "y_m": 15.0, "z_m": 0.0},
+          {"x_m": -5.0, "y_m": 15.0, "z_m": 0.0}
+        ]
+      },
+      "severity": "MANDATORY",
+      "applies_to_vehicle_types": ["GROUND_VEHICLE"]
+    }
+  ],
+  "external_fields": []
+}

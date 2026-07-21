@@ -1,0 +1,27 @@
+{
+  "scenario_id": "uav_wind_no_fly",
+  "name": "UAV wind and no-fly zone",
+  "description": "Quadrotor mission with a wind field, altitude ceiling and cylindrical no-entry zone.",
+  "coordinate_frame": "LOCAL_ENU",
+  "default_duration_s": 90,
+  "sensor_rates_hz": {"GNSS": 8.0, "IMU": 30.0, "BATTERY": 1.0, "VEHICLE_STATUS": 2.0},
+  "motion": {"forward_speed_mps": 4.0, "lateral_amplitude_m": 10.0, "lateral_period_s": 25.0, "vertical_amplitude_m": 10.0, "vertical_period_s": 35.0, "battery_drain_percent_per_s": 0.035},
+  "quality": {"position_noise_std_m": 0.03, "confidence": 0.98},
+  "faults": {},
+  "obstacles": [
+    {
+      "obstacle_id": "UAV-OBS-TOWER-001",
+      "name": "Communications tower",
+      "obstacle_type": "BUILDING",
+      "geometry": {"geometry_type": "BOX", "position": {"x_m": 55.0, "y_m": 3.0, "z_m": 15.0}, "length_m": 5.0, "width_m": 5.0, "height_m": 30.0},
+      "applies_to_vehicle_types": ["UAV"]
+    }
+  ],
+  "constraints": [
+    {"constraint_id": "UAV-CON-ALT-001", "name": "Altitude ceiling", "constraint_type": "MAXIMUM_ALTITUDE", "value": 20.0, "unit": "m", "severity": "MANDATORY", "applies_to_vehicle_types": ["UAV"]},
+    {"constraint_id": "UAV-CON-NOFLY-001", "name": "Tower exclusion zone", "constraint_type": "NO_ENTRY_ZONE", "geometry": {"geometry_type": "CIRCLE", "position": {"x_m": 55.0, "y_m": 3.0, "z_m": 0.0}, "radius_m": 8.0}, "severity": "MANDATORY", "applies_to_vehicle_types": ["UAV"]}
+  ],
+  "external_fields": [
+    {"field_id": "UAV-FIELD-WIND-001", "name": "South-easterly wind", "field_type": "WIND", "coordinate_frame": "LOCAL_ENU", "vector": {"x": 0.25, "y": -0.35, "z": 0.02, "unit": "m/s"}, "unit": "m/s", "applies_to_vehicle_types": ["UAV"]}
+  ]
+}

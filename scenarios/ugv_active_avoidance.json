@@ -1,0 +1,121 @@
+{
+  "scenario_id": "ugv_active_avoidance",
+  "name": "UGV active obstacle avoidance",
+  "description": "Straight ground-vehicle route with two obstacles placed on the nominal centreline to demonstrate a vehicle-specific lateral avoidance path.",
+  "coordinate_frame": "LOCAL_ENU",
+  "default_duration_s": 45,
+  "sensor_rates_hz": {
+    "GNSS": 5.0,
+    "IMU": 20.0,
+    "BATTERY": 1.0,
+    "VEHICLE_STATUS": 4.0
+  },
+  "motion": {
+    "forward_speed_mps": 2.0,
+    "lateral_amplitude_m": 0.0,
+    "lateral_period_s": 30.0,
+    "secondary_amplitude_m": 0.0,
+    "secondary_period_s": 10.0,
+    "vertical_amplitude_m": 0.0,
+    "battery_drain_percent_per_s": 0.02
+  },
+  "obstacle_avoidance": {
+    "enabled": true,
+    "lookahead_s": 4.0,
+    "clearance_margin_m": 0.8,
+    "maximum_offset_m": 5.0,
+    "automatic_offset_expansion": true,
+    "hard_offset_limit_m": 15.0
+  },
+  "quality": {
+    "position_noise_std_m": 0.01,
+    "confidence": 0.99
+  },
+  "faults": {},
+  "obstacles": [
+    {
+      "obstacle_id": "UGV-ACTIVE-OBS-001",
+      "name": "Centreline barrier",
+      "obstacle_type": "STATIC_OBSTACLE",
+      "geometry": {
+        "geometry_type": "CIRCLE",
+        "position": {
+          "x_m": 25.0,
+          "y_m": 0.0,
+          "z_m": 0.0
+        },
+        "radius_m": 2.5
+      },
+      "applies_to_vehicle_types": [
+        "GROUND_VEHICLE"
+      ]
+    },
+    {
+      "obstacle_id": "UGV-ACTIVE-OBS-002",
+      "name": "Second barrier",
+      "obstacle_type": "STATIC_OBSTACLE",
+      "geometry": {
+        "geometry_type": "BOX",
+        "position": {
+          "x_m": 55.0,
+          "y_m": 0.0,
+          "z_m": 0.0
+        },
+        "length_m": 3.0,
+        "width_m": 3.0,
+        "height_m": 1.5
+      },
+      "applies_to_vehicle_types": [
+        "GROUND_VEHICLE"
+      ]
+    }
+  ],
+  "constraints": [
+    {
+      "constraint_id": "UGV-ACTIVE-SPEED",
+      "name": "Demonstration speed limit",
+      "constraint_type": "SPEED_LIMIT",
+      "value": 2.0,
+      "unit": "m/s",
+      "severity": "MANDATORY",
+      "applies_to_vehicle_types": [
+        "GROUND_VEHICLE"
+      ]
+    },
+    {
+      "constraint_id": "UGV-ACTIVE-BOUNDARY",
+      "name": "Test corridor",
+      "constraint_type": "MISSION_BOUNDARY",
+      "geometry": {
+        "geometry_type": "POLYGON",
+        "points": [
+          {
+            "x_m": -5,
+            "y_m": -12,
+            "z_m": 0
+          },
+          {
+            "x_m": 100,
+            "y_m": -12,
+            "z_m": 0
+          },
+          {
+            "x_m": 100,
+            "y_m": 12,
+            "z_m": 0
+          },
+          {
+            "x_m": -5,
+            "y_m": 12,
+            "z_m": 0
+          }
+        ]
+      },
+      "severity": "MANDATORY",
+      "applies_to_vehicle_types": [
+        "GROUND_VEHICLE"
+      ]
+    }
+  ],
+  "external_fields": []
+}

@@ -1,0 +1,1581 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OMIP v0.5.2 Operations Console</title>
+  <style>
+    :root {
+      --bg: #07111f;
+      --panel: #0e1b2d;
+      --panel-2: #13243a;
+      --line: #263c58;
+      --text: #ecf4ff;
+      --muted: #91a6bf;
+      --accent: #ff9f1c;
+      --accent-2: #4cc9f0;
+      --ok: #3ddc97;
+      --warn: #ffd166;
+      --bad: #ff5d73;
+      --unknown: #7f8fa4;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top right, #152c47 0, var(--bg) 38%);
+      color: var(--text);
+      font-family: Inter, Segoe UI, Arial, sans-serif;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 20px 28px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(7, 17, 31, .86);
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      backdrop-filter: blur(12px);
+    }
+    .brand h1 { margin: 0; font-size: 22px; letter-spacing: .04em; }
+    .brand p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+    .header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    select, button, input {
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 9px 12px;
+      font: inherit;
+    }
+    button { cursor: pointer; }
+    button:hover { border-color: var(--accent); }
+    button:disabled { cursor: wait; opacity: .55; }
+    .metric-actions { display: flex; gap: 7px; margin-top: 10px; }
+    .metric-actions button { padding: 6px 9px; font-size: 11px; }
+    .mqtt-config { margin-bottom: 16px; }
+    .mqtt-config.hidden { display: none; }
+    .mqtt-form { display: grid; grid-template-columns: minmax(180px, 2fr) minmax(100px, .7fr) auto auto; gap: 10px; align-items: end; }
+    .field label { display: block; color: var(--muted); font-size: 11px; margin-bottom: 5px; text-transform: uppercase; letter-spacing: .06em; }
+    .field input { width: 100%; }
+    .mqtt-message { color: var(--muted); font-size: 12px; margin-top: 10px; }
+    .simulation-form { display:grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap:12px; align-items:end; }
+    .simulation-form .wide { grid-column: span 2; }
+    .simulation-form select, .simulation-form input { width:100%; }
+    .environment-toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:end; margin-bottom:12px; }
+    .environment-toolbar .field { min-width:190px; }
+    .environment-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+    .environment-card { border:1px solid #233f5c; border-radius:10px; padding:12px; background:#0c1c2d; min-height:120px; }
+    .environment-card h3 { margin:0 0 8px; font-size:14px; }
+    .environment-list { display:grid; gap:7px; max-height:220px; overflow:auto; }
+    .environment-item { border:1px solid #294864; border-radius:7px; padding:8px; font-size:12px; }
+    .environment-item strong { display:block; color:#e6f2ff; }
+    .environment-item small { color:#91a6bf; }
+    .environment-form { display:grid; grid-template-columns:repeat(6,minmax(110px,1fr)); gap:10px; align-items:end; margin-top:12px; }
+    .environment-form input, .environment-form select { width:100%; }
+    .layer-toggles { display:flex; gap:12px; flex-wrap:wrap; font-size:12px; color:#b9cbe0; }
+    .layer-toggles label { display:flex; gap:5px; align-items:center; }
+    .environment-message { margin-top:10px; color:#9fb4ca; font-size:12px; }
+    .parameter-preview { margin-top:12px; padding:12px; border:1px solid var(--line); border-radius:8px; background:rgba(7,17,31,.45); font-family:Consolas,monospace; font-size:11px; max-height:190px; overflow:auto; white-space:pre-wrap; }
+    .run-actions button { padding:5px 8px; font-size:11px; }
+    .view-hint { color: var(--muted); font-size: 12px; }
+    .mission-state { color: var(--muted); font-size: 12px; min-width: 88px; }
+    .mission-state.loading { color: var(--warn); }
+    .mission-state.ready { color: var(--ok); }
+    .mission-state.error { color: var(--bad); }
+    .trajectory-tools { display: flex; gap: 8px; align-items: center; }
+    .trajectory-tools label { color: var(--muted); font-size: 12px; }
+    .trajectory-tools select { padding: 6px 9px; }
+    .export-actions { display: grid; grid-template-columns: repeat(2, minmax(150px, 1fr)); gap: 10px; margin-top: 14px; }
+    .export-button { display: block; text-align: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); color: var(--text); }
+    .export-button:hover { border-color: var(--accent); color: var(--text); }
+    .export-button.primary { border-color: rgba(255,159,28,.75); background: rgba(255,159,28,.14); }
+    .export-button.disabled { opacity: .45; pointer-events: none; }
+    .export-status { color: var(--muted); font-size: 12px; margin-top: 12px; line-height: 1.5; }
+    .notes-panel { margin-top: 16px; }
+    main { padding: 22px 28px 40px; max-width: 1700px; margin: auto; }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+    .metric, .panel {
+      background: linear-gradient(145deg, rgba(19,36,58,.96), rgba(12,26,44,.96));
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 14px 40px rgba(0,0,0,.16);
+    }
+    .metric { padding: 16px; }
+    .metric label { display: block; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+    .metric strong { display: block; font-size: 24px; margin-top: 7px; }
+    .metric small { color: var(--muted); }
+    .grid-main {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .grid-lower {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .panel { overflow: hidden; }
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      gap: 12px;
+    }
+    .panel-header h2 { margin: 0; font-size: 15px; letter-spacing: .04em; }
+    .panel-body { padding: 14px 16px; }
+    .table-wrap { overflow: auto; max-height: 340px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { color: var(--muted); font-weight: 600; text-align: left; position: sticky; top: 0; background: var(--panel); }
+    th, td { padding: 10px 9px; border-bottom: 1px solid rgba(38,60,88,.7); white-space: nowrap; }
+    tr[data-id] { cursor: pointer; }
+    tr[data-id]:hover { background: rgba(76,201,240,.08); }
+    tr.selected { background: rgba(255,159,28,.12); }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      background: rgba(127,143,164,.15);
+    }
+    .status::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--unknown); }
+    .ONLINE::before { background: var(--ok); box-shadow: 0 0 10px var(--ok); }
+    .DEGRADED::before { background: var(--warn); }
+    .OFFLINE::before { background: var(--bad); }
+    .INACTIVE::before { background: var(--accent-2); }
+    .DISABLED::before, .UNKNOWN::before { background: var(--unknown); }
+    .OPEN::before { background: var(--bad); box-shadow: 0 0 10px rgba(255,93,115,.6); }
+    .ACKNOWLEDGED::before { background: var(--warn); }
+    .RESOLVED::before { background: var(--ok); }
+    .HEALTHY::before, .CLEAR::before { background: var(--ok); }
+    .CAUTION::before, .WARNING::before { background: var(--warn); }
+    .CRITICAL::before, .COLLISION::before { background: var(--bad); box-shadow: 0 0 10px rgba(255,93,115,.6); }
+    .NO_DATA::before { background: var(--unknown); }
+    .table-action { padding: 5px 8px; font-size: 11px; margin-right: 5px; }
+    .integrity-description { max-width: 420px; white-space: normal; line-height: 1.35; }
+    canvas {
+      width: 100%;
+      height: 360px;
+      display: block;
+      background: #071523;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+    }
+    .live-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
+    .live-item { background: rgba(7,17,31,.45); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+    .live-item span { display: block; color: var(--muted); font-size: 11px; }
+    .live-item strong { display: block; font-size: 18px; margin-top: 4px; }
+    .raw-json {
+      font-family: Consolas, monospace;
+      font-size: 11px;
+      color: #c9e8ff;
+      max-width: 430px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .event {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: 110px 1fr auto;
+      gap: 10px;
+      font-size: 13px;
+    }
+    .event:last-child { border-bottom: 0; }
+    .event time { color: var(--muted); }
+    .event-type { font-weight: 700; color: var(--accent-2); }
+    .severity { color: var(--warn); font-size: 11px; }
+    .empty { color: var(--muted); padding: 24px 8px; text-align: center; }
+    .connected { color: var(--ok); }
+    .disconnected { color: var(--bad); }
+    a { color: var(--accent-2); text-decoration: none; }
+    .system-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 12px; margin-bottom: 14px; }
+    .system-kpi { padding: 13px; border-radius: 9px; background: rgba(7,17,31,.45); border: 1px solid var(--line); }
+    .system-kpi span { display:block; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.06em; }
+    .system-kpi strong { display:block; margin-top:5px; font-size:19px; }
+    .monitoring-grid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:16px; }
+    .log-message { max-width:560px; white-space:normal; line-height:1.35; }
+    .component-message { max-width:440px; white-space:normal; }
+    .tab-title { color:var(--accent-2); }
+    @media (max-width: 1050px) {
+      .summary { grid-template-columns: repeat(2, 1fr); }
+      .grid-main, .grid-lower, .monitoring-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 650px) {
+      header, main { padding-left: 14px; padding-right: 14px; }
+      .summary { grid-template-columns: 1fr; }
+      .live-grid { grid-template-columns: repeat(2, 1fr); }
+      .mqtt-form, .simulation-form, .environment-form { grid-template-columns: 1fr; }
+      .simulation-form .wide { grid-column: span 1; }
+      .environment-grid { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <h1>OMIP v0.5.2 Operations Console</h1>
+    <p>Vehicle-profile-driven simulation, fleet acquisition, integrity, operational health and data lifecycle</p>
+  </div>
+  <div class="header-actions">
+    <span id="wsState" class="disconnected">Stream disconnected</span>
+    <select id="vehicleSelect"><option value="">All vehicles</option></select>
+    <select id="missionSelect"><option value="">Live stream</option></select>
+    <button id="loadMissionBtn" disabled>Load mission</button>
+    <span id="missionSelectionState" class="mission-state" aria-live="polite">Live stream</span>
+    <button id="refreshBtn">Refresh</button>
+    <a href="/docs" target="_blank">API docs</a>
+  </div>
+</header>
+<main>
+  <section class="summary">
+    <div class="metric"><label>Vehicles</label><strong id="vehicleCount">0</strong><small>registered</small></div>
+    <div class="metric"><label>Active vehicles</label><strong id="activeVehicles">0</strong><small>running and online</small></div>
+    <div class="metric"><label>Sensors</label><strong id="sensorCount">0</strong><small>registered</small></div>
+    <div class="metric"><label>Online sensors</label><strong id="onlineSensors">0</strong><small>independent sensor state</small></div>
+    <div class="metric"><label>Raw messages</label><strong id="rawCount">0</strong><small>fleet total</small></div>
+    <div class="metric"><label>Integrity events</label><strong id="integrityCount">0</strong><small>latest detected faults</small></div>
+    <div class="metric"><label>Open alerts</label><strong id="openAlertCount">0</strong><small>operator attention</small></div>
+    <div class="metric"><label>MQTT</label><strong id="mqttState">OFF</strong><small id="mqttDetail">HTTP mode available</small><div class="metric-actions"><button id="mqttToggleBtn">Enable</button><button id="mqttConfigBtn">Configure</button></div></div>
+  </section>
+
+  <section class="panel" style="margin-bottom:16px">
+    <div class="panel-header"><h2 class="tab-title">Create Simulation</h2><span id="simulationMessage">Select a vehicle type and profile</span></div>
+    <div class="panel-body">
+      <div class="simulation-form">
+        <div class="field"><label for="simulationVehicleId">Vehicle ID</label><input id="simulationVehicleId" value="OMIP-SIM-002" /></div>
+        <div class="field"><label for="simulationVehicleType">Vehicle type</label><select id="simulationVehicleType"></select></div>
+        <div class="field"><label for="simulationProfile">Vehicle profile</label><select id="simulationProfile"></select></div>
+        <div class="field"><label for="simulationScenario">Scenario</label><select id="simulationScenario"></select></div>
+        <div class="field"><label for="simulationDuration">Duration (seconds)</label><input id="simulationDuration" type="number" min="0" max="604800" value="120" /></div>
+        <div class="field"><label for="simulationTransport">Transport</label><select id="simulationTransport"><option value="http">HTTP</option><option value="mqtt">MQTT</option></select></div>
+        <div class="field"><label for="simulationSeed">Random seed</label><input id="simulationSeed" type="number" min="0" value="42" /></div>
+        <button id="simulationStartBtn">Start simulation</button>
+      </div>
+      <div id="simulationParameterPreview" class="parameter-preview">Loading vehicle profiles…</div>
+    </div>
+  </section>
+
+  <section class="panel" style="margin-bottom:16px">
+    <div class="panel-header"><h2 class="tab-title">Environment Context</h2><span id="environmentVersion">Select a scenario</span></div>
+    <div class="panel-body">
+      <div class="environment-toolbar">
+        <div class="field"><label for="environmentScenario">Scenario</label><select id="environmentScenario"></select></div>
+        <button id="environmentReloadBtn">Load environment</button>
+        <div class="layer-toggles">
+          <label><input id="layerObstacles" type="checkbox" checked /> Obstacles</label>
+          <label><input id="layerConstraints" type="checkbox" checked /> Constraints</label>
+          <label><input id="layerFields" type="checkbox" checked /> External fields</label>
+          <label><input id="layerSafety" type="checkbox" checked /> Safety envelopes</label>
+        </div>
+      </div>
+      <div class="environment-grid">
+        <div class="environment-card"><h3>Obstacles <span id="environmentObstacleCount">0</span></h3><div id="environmentObstacleList" class="environment-list"><div class="empty">No obstacles.</div></div></div>
+        <div class="environment-card"><h3>Constraints <span id="environmentConstraintCount">0</span></h3><div id="environmentConstraintList" class="environment-list"><div class="empty">No constraints.</div></div></div>
+        <div class="environment-card"><h3>External fields <span id="environmentFieldCount">0</span></h3><div id="environmentFieldList" class="environment-list"><div class="empty">No external fields.</div></div></div>
+      </div>
+      <div class="environment-form">
+        <div class="field"><label for="environmentItemKind">Add</label><select id="environmentItemKind"><option value="obstacle">Obstacle</option><option value="constraint">Constraint</option><option value="field">External field</option></select></div>
+        <div class="field"><label for="environmentItemName">Name</label><input id="environmentItemName" value="New object" /></div>
+        <div class="field"><label for="environmentItemType">Type</label><select id="environmentItemType"></select></div>
+        <div class="field"><label for="environmentGeometryType">Geometry</label><select id="environmentGeometryType"><option value="">Global / none</option><option value="POINT">Point</option><option value="CIRCLE" selected>Circle</option><option value="SPHERE">Sphere</option><option value="BOX">Box</option></select></div>
+        <div class="field"><label for="environmentX">X</label><input id="environmentX" type="number" value="20" step="0.1" /></div>
+        <div class="field"><label for="environmentY">Y</label><input id="environmentY" type="number" value="0" step="0.1" /></div>
+        <div class="field"><label for="environmentZ">Z</label><input id="environmentZ" type="number" value="0" step="0.1" /></div>
+        <div class="field"><label for="environmentRadius">Radius / value</label><input id="environmentRadius" type="number" value="2" step="0.1" /></div>
+        <div class="field"><label for="environmentUnit">Unit</label><input id="environmentUnit" value="m" /></div>
+        <div class="field"><label for="environmentVectorX">Vector X</label><input id="environmentVectorX" type="number" value="0.2" step="0.05" /></div>
+        <div class="field"><label for="environmentVectorY">Vector Y</label><input id="environmentVectorY" type="number" value="0" step="0.05" /></div>
+        <div class="field"><label for="environmentApplies">Vehicle types</label><input id="environmentApplies" value="GROUND_VEHICLE" /></div>
+        <button id="environmentAddBtn">Add object</button>
+      </div>
+      <div id="environmentMessage" class="environment-message">Environment templates are editable. Each simulation stores an immutable Mission snapshot.</div>
+    </div>
+  </section>
+
+  <section class="panel" style="margin-bottom:16px">
+    <div class="panel-header"><h2>Simulation Runs</h2><span id="simulationRunCount">0 runs</span></div>
+    <div class="table-wrap"><table><thead><tr><th>Created</th><th>Vehicle</th><th>Type / Profile</th><th>Scenario</th><th>Mission</th><th>Status</th><th>PID</th><th>Actions</th></tr></thead><tbody id="simulationRunBody"><tr><td colspan="8" class="empty">No simulation runs.</td></tr></tbody></table></div>
+  </section>
+
+  <section id="mqttConfigPanel" class="panel mqtt-config hidden">
+    <div class="panel-header"><h2>MQTT Runtime Settings</h2><span>OMIP consumer bridge</span></div>
+    <div class="panel-body">
+      <div class="mqtt-form">
+        <div class="field"><label for="mqttHostInput">Broker host</label><input id="mqttHostInput" value="127.0.0.1" autocomplete="off" /></div>
+        <div class="field"><label for="mqttPortInput">Broker port</label><input id="mqttPortInput" type="number" min="1" max="65535" value="1883" /></div>
+        <button id="mqttApplyBtn">Save and enable</button>
+        <button id="mqttCloseBtn">Close</button>
+      </div>
+      <div id="mqttMessage" class="mqtt-message">This switch controls the OMIP MQTT consumer. Mosquitto or another broker must already be running.</div>
+    </div>
+  </section>
+
+  <section class="panel" style="margin-bottom:16px">
+    <div class="panel-header"><h2 class="tab-title">System Monitoring</h2><span id="systemCaptured">Waiting for health check</span></div>
+    <div class="panel-body">
+      <div class="system-summary">
+        <div class="system-kpi"><span>Overall health</span><strong id="systemOverall">UNKNOWN</strong></div>
+        <div class="system-kpi"><span>Backend uptime</span><strong id="systemUptime">0s</strong></div>
+        <div class="system-kpi"><span>Database</span><strong id="systemDatabase">UNKNOWN</strong></div>
+        <div class="system-kpi"><span>Input rate</span><strong id="systemInputRate">0 msg/s</strong></div>
+        <div class="system-kpi"><span>WebSocket clients</span><strong id="systemWsClients">0</strong></div>
+        <div class="system-kpi"><span>Memory</span><strong id="systemMemory">—</strong></div>
+        <div class="system-kpi"><span>Platform alerts</span><strong id="platformAlertCount">0</strong></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="monitoring-grid">
+    <div class="panel">
+      <div class="panel-header"><h2>Component Health</h2><span>Backend platform</span></div>
+      <div class="table-wrap">
+        <table><thead><tr><th>Component</th><th>Status</th><th>Details</th></tr></thead><tbody id="componentHealthBody"><tr><td colspan="3" class="empty">Loading component health…</td></tr></tbody></table>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><h2>Platform Alerts</h2><span>OMIP infrastructure</span></div>
+      <div class="table-wrap">
+        <table><thead><tr><th>Time</th><th>Severity</th><th>Component</th><th>Type</th><th>Status</th><th>Actions</th></tr></thead><tbody id="platformAlertBody"><tr><td colspan="6" class="empty">No platform alerts.</td></tr></tbody></table>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" style="margin-bottom:16px">
+    <div class="panel-header"><h2>Application Logs</h2><span id="logCount">latest 0</span></div>
+    <div class="table-wrap">
+      <table><thead><tr><th>Time</th><th>Level</th><th>Component</th><th>Event</th><th>Message</th></tr></thead><tbody id="applicationLogBody"><tr><td colspan="5" class="empty">No application logs.</td></tr></tbody></table>
+    </div>
+  </section>
+
+
+  <section class="panel" style="margin-bottom:16px">
+    <div class="panel-header"><h2 class="tab-title">Storage Management</h2><span id="storageCaptured">Waiting for storage summary</span></div>
+    <div class="panel-body">
+      <div class="system-summary">
+        <div class="system-kpi"><span>Database size</span><strong id="storageDbSize">—</strong></div>
+        <div class="system-kpi"><span>Raw rows</span><strong id="storageRawRows">0</strong></div>
+        <div class="system-kpi"><span>Telemetry rows</span><strong id="storageTelemetryRows">0</strong></div>
+        <div class="system-kpi"><span>Daily growth</span><strong id="storageDailyGrowth">—</strong></div>
+        <div class="system-kpi"><span>Export jobs</span><strong id="storageExportJobs">0</strong></div>
+        <div class="system-kpi"><span>Backups</span><strong id="storageBackups">0</strong></div>
+      </div>
+      <div class="metric-actions">
+        <button id="storageIntegrityBtn">Integrity check</button>
+        <button id="storageCheckpointBtn">WAL checkpoint</button>
+        <button id="storageAnalyzeBtn">ANALYZE</button>
+        <button id="storageBackupBtn">Create backup</button>
+        <button id="storageCleanupPreviewBtn">Cleanup preview</button>
+      </div>
+      <div id="storageMessage" class="export-status">Storage operations are manual. Cleanup never runs automatically.</div>
+    </div>
+  </section>
+
+  <section class="monitoring-grid">
+    <div class="panel">
+      <div class="panel-header"><h2>Background Export Jobs</h2><span>latest jobs</span></div>
+      <div class="table-wrap"><table><thead><tr><th>Created</th><th>Mission</th><th>Format</th><th>State</th><th>Progress</th><th>Download</th></tr></thead><tbody id="exportJobBody"><tr><td colspan="6" class="empty">No export jobs.</td></tr></tbody></table></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><h2>Database Backups</h2><span>manual SQLite backups</span></div>
+      <div class="table-wrap"><table><thead><tr><th>Created</th><th>Label</th><th>State</th><th>Size</th><th>Download</th></tr></thead><tbody id="backupBody"><tr><td colspan="5" class="empty">No backups.</td></tr></tbody></table></div>
+    </div>
+  </section>
+
+  <section class="grid-main">
+    <div class="panel">
+      <div class="panel-header"><h2>Fleet Registry</h2><span><span id="fleetViewLabel" class="view-hint">All vehicles</span> · <span id="fleetUpdated"></span></span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Vehicle</th><th>Type</th><th>Status</th><th>Mission</th><th>Heartbeat</th><th>Sensors</th><th>Telemetry</th><th>Raw</th><th>Last activity</th></tr></thead>
+          <tbody id="fleetBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><h2>Sensor Registry</h2><span id="sensorVehicleLabel">All vehicles</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Sensor</th><th>Type</th><th>Status</th><th>Rate</th><th>Messages</th><th>Invalid</th><th>Transport</th><th>Last data</th></tr></thead>
+          <tbody id="sensorBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="grid-main">
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Normalised Telemetry Trajectory</h2>
+        <div class="trajectory-tools"><span id="trajectoryMode">LIVE</span><label for="projectionSelect">View</label><select id="projectionSelect"><option value="XY">XY</option><option value="XZ">XZ</option><option value="YZ">YZ</option></select></div>
+      </div>
+      <div class="panel-body">
+        <div class="live-grid">
+          <div class="live-item"><span>Vehicle</span><strong id="liveVehicle">—</strong></div>
+          <div class="live-item"><span>Speed</span><strong id="liveSpeed">—</strong></div>
+          <div class="live-item"><span>Battery</span><strong id="liveBattery">—</strong></div>
+          <div class="live-item"><span>Mode</span><strong id="liveMode">—</strong></div>
+          <div class="live-item"><span>X</span><strong id="liveX">—</strong></div>
+          <div class="live-item"><span>Y</span><strong id="liveY">—</strong></div>
+          <div class="live-item"><span>Z</span><strong id="liveZ">—</strong></div>
+          <div class="live-item"><span>Heading</span><strong id="liveHeading">—</strong></div>
+          <div class="live-item"><span>Confidence</span><strong id="liveConfidence">—</strong></div>
+        </div>
+        <canvas id="trajectory" width="900" height="360"></canvas>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><h2>Latest Raw Sensor Messages</h2><span id="rawStreamLabel">stream</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Time</th><th>Sensor</th><th>Type</th><th>Transport</th><th>Valid</th><th>Payload</th></tr></thead>
+          <tbody id="rawBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" style="margin-bottom:16px">
+    <div class="panel-header"><h2>Obstacle Interaction and Collision Risk</h2><span id="obstacleScopeLabel">Live fleet</span></div>
+    <div class="panel-body">
+      <div class="live-grid">
+        <div class="live-item"><span>Risk</span><strong id="obstacleRisk">UNKNOWN</strong></div>
+        <div class="live-item"><span>Nearest obstacle</span><strong id="obstacleNearest">—</strong></div>
+        <div class="live-item"><span>Clearance</span><strong id="obstacleClearance">—</strong></div>
+        <div class="live-item"><span>Time to collision</span><strong id="obstacleTtc">—</strong></div>
+        <div class="live-item"><span>Safety radius</span><strong id="obstacleSafetyRadius">—</strong></div>
+        <div class="live-item"><span>Avoidance</span><strong id="obstacleAvoidance">INACTIVE</strong></div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Time</th><th>Risk</th><th>Obstacle</th><th>Clearance</th><th>TTC</th><th>Closing speed</th><th>Avoidance</th></tr></thead>
+        <tbody id="obstacleInteractionBody"><tr><td colspan="7" class="empty">No obstacle interaction samples.</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="grid-lower">
+    <div class="panel">
+      <div class="panel-header"><h2>Active Alerts</h2><span id="alertScopeLabel">Fleet</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Time</th><th>Severity</th><th>Type</th><th>Vehicle / Sensor</th><th>Status</th><th>Occurrences</th><th>Actions</th></tr></thead>
+          <tbody id="alertBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><h2>Data Integrity Events</h2><span id="integrityScopeLabel">Fleet</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Time</th><th>Check</th><th>Stream</th><th>Sequence</th><th>Description</th></tr></thead>
+          <tbody id="integrityBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-header"><h2>Sensor Integrity Metrics</h2><span id="integrityMetricsScope">Select a mission</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Sensor</th><th>Health</th><th>Expected</th><th>Actual</th><th>Missing</th><th>Duplicate</th><th>Out of order</th><th>Avg latency</th><th>P95 latency</th><th>Max latency</th></tr></thead>
+        <tbody id="integrityMetricsBody"><tr><td colspan="10" class="empty">Select a historical mission to load integrity metrics.</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="grid-lower">
+    <div class="panel">
+      <div class="panel-header"><h2>Mission Events</h2><span id="eventMissionLabel">Select a mission</span></div>
+      <div class="panel-body" id="eventList"><div class="empty">No mission selected.</div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><h2>Data Export</h2><span id="exportMissionLabel">Select a mission</span></div>
+      <div class="panel-body">
+        <p>Choose a mission from the header. Downloads include the complete selected mission rather than only the rows currently visible on screen.</p>
+        <div class="export-actions">
+          <a id="exportTelemetryCsv" class="export-button disabled" href="#">Telemetry CSV</a>
+          <a id="exportTelemetryJsonl" class="export-button disabled" href="#">Telemetry JSONL</a>
+          <a id="exportRawCsv" class="export-button disabled" href="#">Raw Sensor CSV</a>
+          <a id="exportRawJsonl" class="export-button disabled" href="#">Raw Sensor JSONL</a>
+          <a id="exportPackage" class="export-button primary disabled" href="#">Complete Mission ZIP</a>
+          <button id="createBackgroundExport" disabled>Queue Background ZIP</button>
+        </div>
+        <div id="exportStatus" class="export-status">No mission selected. Select a historical mission to enable export.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel notes-panel">
+    <div class="panel-header"><h2>Acquisition Notes</h2></div>
+    <div class="panel-body">
+      <p>Raw GNSS, IMU, battery and vehicle-status messages are stored separately. GNSS or odometry updates trigger the baseline normalizer, which emits unified telemetry.</p>
+      <p><strong>Vehicle status</strong> uses heartbeat or telemetry while a mission is RUNNING. A completed or aborted mission becomes <strong>INACTIVE</strong>, not OFFLINE. <strong>Sensor status</strong> is calculated separately from each sensor's own data stream.</p>
+      <p>Running thresholds: <strong>ONLINE</strong> ≤ 5 seconds, <strong>DEGRADED</strong> ≤ 15 seconds, otherwise <strong>OFFLINE</strong>.</p>
+      <p><strong>v0.4.1 integrity engine:</strong> sequence, sampling-rate, communication-latency and timestamp faults are persisted as Integrity Events. Recoverable rate and latency alerts are automatically resolved after a healthy evaluation window; historical faults remain available for review.</p><p><strong>v0.4.2 operational health:</strong> backend uptime, database health, HTTP/MQTT rates, WebSocket clients, process resources, structured application logs and platform alerts are monitored independently from vehicle data alerts.</p><p><strong>v0.4.3 storage lifecycle:</strong> pagination, retention preview, manual cleanup, background export jobs, backups and SQLite maintenance are available. Destructive operations require explicit confirmation.</p><p><strong>v0.5.0 vehicle profiles:</strong> select UGV, UAV, AUV or USV profiles in the console or pass the same profile through CLI parameters. Every Mission stores the resolved profile, capabilities, parameters, scenario and random seed.</p><p><strong>v0.5.1 environment context:</strong> scenario templates contain obstacles, vehicle-specific constraints and external fields. Simulation startup filters them by vehicle type and capabilities, then stores an immutable Mission environment snapshot.</p><p><strong>v0.5.2 obstacle interaction:</strong> vehicle-specific safety envelopes, nearest-obstacle clearance, time-to-collision estimates and basic obstacle-aware trajectory generation are available. These are research and simulation features, not certified control functions.</p>
+    </div>
+  </section>
+</main>
+<script>
+  const $ = id => document.getElementById(id);
+  const state = {
+    vehicles: [], sensors: [], missions: [], raw: [], historyRaw: [], alerts: [], integrityEvents: [], integrityMetrics: null,
+    systemHealth: null, systemMetrics: null, platformAlerts: [], applicationLogs: [], metricSnapshots: [], storageSummary: null, exportJobs: [], backups: [],
+    vehicleTypes: [], vehicleProfiles: [], scenarios: [], simulationRuns: [],
+    currentEnvironment: null, missionEnvironment: null, environmentLoading: false,
+    obstacleInteractions: [], obstacleSummary: null, latestObstacleInteraction: {},
+    trajectories: {}, latestTelemetry: {}, historyPoints: [],
+    selectedVehicle: '', selectedMission: '', acquisition: null, projection: 'XY',
+    missionLoading: false, missionLoadToken: 0
+  };
+  const canvas = $('trajectory');
+  const ctx = canvas.getContext('2d');
+
+  function fmtTime(value) {
+    if (!value) return '—';
+    const date = new Date(value);
+    return isNaN(date) ? '—' : date.toLocaleTimeString();
+  }
+  function badge(status) { return `<span class="status ${status}">${status}</span>`; }
+  function esc(value) { return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  async function getJson(url) {
+    const response = await fetch(url, {cache: 'no-store'});
+    const body = await response.json().catch(() => null);
+    if (!response.ok) {
+      const detail = body && (body.detail || body.message);
+      throw new Error(detail || `${response.status} ${response.statusText}`);
+    }
+    return body;
+  }
+
+  async function putJson(url, payload) {
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.detail || `${response.status} ${response.statusText}`);
+    return body;
+  }
+
+  async function postJson(url, payload) {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.detail || `${response.status} ${response.statusText}`);
+    return body;
+  }
+
+  async function refreshAll() {
+    try {
+      const [vehicles, sensors, missions, acquisition, alerts, integrityEvents, systemHealth, systemMetrics, platformAlerts, applicationLogs, storageSummary, exportJobs, backups, vehicleTypes, vehicleProfiles, scenarios, simulationRuns] = await Promise.all([
+        getJson('/api/v1/vehicles'),
+        getJson('/api/v1/sensors'),
+        getJson('/api/v1/missions?limit=500'),
+        getJson('/api/v1/acquisition/status'),
+        getJson('/api/v1/alerts?limit=500'),
+        getJson('/api/v1/integrity-events?limit=500'),
+        getJson('/api/v1/system/health'),
+        getJson('/api/v1/system/metrics'),
+        getJson('/api/v1/system/platform-alerts?limit=200'),
+        getJson('/api/v1/system/logs?limit=100'),
+        getJson('/api/v1/storage/summary'),
+        getJson('/api/v1/export-jobs?limit=50'),
+        getJson('/api/v1/storage/backups?limit=50'),
+        getJson('/api/v1/vehicle-types'),
+        getJson('/api/v1/vehicle-profiles?enabled_only=true'),
+        getJson('/api/v1/scenarios'),
+        getJson('/api/v1/simulation-runs?limit=100')
+      ]);
+      state.vehicles = vehicles;
+      state.sensors = sensors;
+      state.missions = missions;
+      state.acquisition = acquisition;
+      state.alerts = alerts;
+      state.integrityEvents = integrityEvents;
+      state.systemHealth = systemHealth;
+      state.systemMetrics = systemMetrics;
+      state.platformAlerts = platformAlerts;
+      state.applicationLogs = applicationLogs;
+      state.storageSummary = storageSummary;
+      state.exportJobs = exportJobs;
+      state.backups = backups;
+      state.vehicleTypes = vehicleTypes;
+      state.vehicleProfiles = vehicleProfiles;
+      state.scenarios = scenarios;
+      state.simulationRuns = simulationRuns;
+      if (state.selectedVehicle && !vehicles.some(v => v.vehicle_id === state.selectedVehicle)) {
+        state.selectedVehicle = '';
+        state.selectedMission = '';
+      }
+      renderFleet(); renderSensors(); renderSelectors(); renderSummary(acquisition); renderIntegrity(); renderSystemMonitoring(); renderStorageManagement(); renderSimulationControls(); renderSimulationRuns();
+      $('fleetUpdated').textContent = `Updated ${new Date().toLocaleTimeString()}`;
+    } catch (error) {
+      $('fleetUpdated').textContent = `Refresh failed: ${error.message}`;
+    }
+  }
+
+  function selectedSimulationProfile() {
+    return state.vehicleProfiles.find(profile => profile.profile_id === $('simulationProfile').value) || null;
+  }
+
+  function renderSimulationControls() {
+    const typeSelect = $('simulationVehicleType');
+    const previousType = typeSelect.value || 'GROUND_VEHICLE';
+    typeSelect.innerHTML = state.vehicleTypes.map(item => `<option value="${esc(item.vehicle_type)}">${esc(item.label)}</option>`).join('');
+    typeSelect.value = state.vehicleTypes.some(item => item.vehicle_type === previousType) ? previousType : (state.vehicleTypes[0]?.vehicle_type || 'GROUND_VEHICLE');
+    const profiles = state.vehicleProfiles.filter(profile => profile.vehicle_type === typeSelect.value && profile.enabled);
+    const profileSelect = $('simulationProfile');
+    const previousProfile = profileSelect.value;
+    profileSelect.innerHTML = profiles.map(profile => `<option value="${esc(profile.profile_id)}">${esc(profile.profile_name)}</option>`).join('');
+    if (profiles.some(profile => profile.profile_id === previousProfile)) profileSelect.value = previousProfile;
+    const scenarioSelect = $('simulationScenario');
+    const previousScenario = scenarioSelect.value || 'multi_sensor_nominal';
+    scenarioSelect.innerHTML = state.scenarios.map(item => `<option value="${esc(item.scenario_id)}">${esc(item.name)}</option>`).join('');
+    if (state.scenarios.some(item => item.scenario_id === previousScenario)) scenarioSelect.value = previousScenario;
+    const environmentSelect = $('environmentScenario');
+    const previousEnvironment = environmentSelect.value || scenarioSelect.value;
+    environmentSelect.innerHTML = state.scenarios.map(item => `<option value="${esc(item.scenario_id)}">${esc(item.name)}</option>`).join('');
+    environmentSelect.value = state.scenarios.some(item => item.scenario_id === previousEnvironment) ? previousEnvironment : scenarioSelect.value;
+    renderSimulationProfilePreview();
+    if (!state.currentEnvironment || state.currentEnvironment.scenario_id !== environmentSelect.value) {
+      loadEnvironmentScenario(environmentSelect.value).catch(error => { $('environmentMessage').textContent = `Environment load failed: ${error.message}`; });
+    }
+  }
+
+  function renderSimulationProfilePreview() {
+    const profile = selectedSimulationProfile();
+    if (!profile) { $('simulationParameterPreview').textContent = 'No enabled profile is available for this vehicle type.'; return; }
+    $('simulationParameterPreview').textContent = JSON.stringify({
+      profile_id: profile.profile_id, vehicle_type: profile.vehicle_type,
+      capabilities: profile.capabilities, parameters: profile.parameters
+    }, null, 2);
+  }
+
+  const ENVIRONMENT_TYPES = {
+    obstacle: ['STATIC_OBSTACLE','DYNAMIC_OBSTACLE','UNKNOWN_OBJECT','TERRAIN','BUILDING','VESSEL','UNDERWATER_STRUCTURE'],
+    constraint: ['SPEED_LIMIT','NO_ENTRY_ZONE','MAXIMUM_ALTITUDE','MINIMUM_ALTITUDE','MAXIMUM_DEPTH','MINIMUM_DEPTH','MISSION_BOUNDARY','REQUIRED_CORRIDOR','CHECKPOINT','BATTERY_RETURN_THRESHOLD','COMMUNICATION_REQUIRED_ZONE'],
+    field: ['WIND','OCEAN_CURRENT','WATER_CURRENT','ROAD_SLOPE','SURFACE_FRICTION','TERRAIN_ELEVATION','COMMUNICATION_QUALITY','GNSS_QUALITY']
+  };
+
+  function updateEnvironmentTypeOptions() {
+    const kind = $('environmentItemKind').value;
+    $('environmentItemType').innerHTML = ENVIRONMENT_TYPES[kind].map(value => `<option value="${value}">${value.replaceAll('_',' ')}</option>`).join('');
+    const unitDefaults = {obstacle:'m', constraint:'m/s', field:'m/s'};
+    $('environmentUnit').value = unitDefaults[kind];
+  }
+
+  function geometrySummary(geometry) {
+    if (!geometry) return 'global';
+    const p = geometry.position || {};
+    if (geometry.geometry_type === 'POLYGON') return `polygon · ${(geometry.points || []).length} points`;
+    const position = `(${Number(p.x_m || 0).toFixed(1)}, ${Number(p.y_m || 0).toFixed(1)}, ${Number(p.z_m || 0).toFixed(1)})`;
+    return `${geometry.geometry_type} ${position}${geometry.radius_m ? ` · r ${geometry.radius_m} m` : ''}`;
+  }
+
+  function environmentApplicability(item) {
+    const types = item.applies_to_vehicle_types || [];
+    const ids = item.applies_to_vehicle_ids || [];
+    return [...types, ...ids].join(', ') || 'all vehicles';
+  }
+
+  function renderEnvironmentContext() {
+    const environment = state.missionEnvironment || state.currentEnvironment;
+    if (!environment) {
+      $('environmentVersion').textContent = 'Select a scenario';
+      return;
+    }
+    $('environmentVersion').textContent = `${environment.scenario_id || 'Mission snapshot'} · v${environment.scenario_version || environment.version || 1}${state.missionEnvironment ? ' · immutable snapshot' : ''}`;
+    const obstacles = environment.obstacles || [], constraints = environment.constraints || [], fields = environment.external_fields || [];
+    $('environmentObstacleCount').textContent = obstacles.length;
+    $('environmentConstraintCount').textContent = constraints.length;
+    $('environmentFieldCount').textContent = fields.length;
+    $('environmentObstacleList').innerHTML = obstacles.map(item => `<div class="environment-item"><strong>${esc(item.name)}</strong><small>${esc(item.obstacle_type)} · ${esc(geometrySummary(item.geometry))}<br>${esc(environmentApplicability(item))}</small></div>`).join('') || '<div class="empty">No obstacles.</div>';
+    $('environmentConstraintList').innerHTML = constraints.map(item => `<div class="environment-item"><strong>${esc(item.name)}</strong><small>${esc(item.constraint_type)} · ${esc(item.value ?? '')} ${esc(item.unit || '')} · ${esc(geometrySummary(item.geometry))}<br>${esc(environmentApplicability(item))}</small></div>`).join('') || '<div class="empty">No constraints.</div>';
+    $('environmentFieldList').innerHTML = fields.map(item => { const v=item.vector||{}; return `<div class="environment-item"><strong>${esc(item.name)}</strong><small>${esc(item.field_type)} · [${Number(v.x||0).toFixed(2)}, ${Number(v.y||0).toFixed(2)}, ${Number(v.z||0).toFixed(2)}] ${esc(item.unit||v.unit||'')}<br>${esc(environmentApplicability(item))}</small></div>`; }).join('') || '<div class="empty">No external fields.</div>';
+    draw();
+  }
+
+  async function loadEnvironmentScenario(scenarioId) {
+    if (!scenarioId || state.environmentLoading) return;
+    state.environmentLoading = true;
+    $('environmentMessage').textContent = `Loading ${scenarioId}…`;
+    try {
+      state.currentEnvironment = await getJson(`/api/v1/scenarios/${encodeURIComponent(scenarioId)}`);
+      if (!state.selectedMission) state.missionEnvironment = null;
+      $('environmentScenario').value = scenarioId;
+      $('environmentMessage').textContent = `${state.currentEnvironment.name}: ${state.currentEnvironment.obstacles.length} obstacles, ${state.currentEnvironment.constraints.length} constraints and ${state.currentEnvironment.external_fields.length} external fields.`;
+      renderEnvironmentContext();
+    } finally { state.environmentLoading = false; }
+  }
+
+  function buildEnvironmentGeometry(kind) {
+    let geometryType = $('environmentGeometryType').value;
+    if (!geometryType) return kind === 'obstacle' ? {geometry_type:'POINT', position:{x_m:Number($('environmentX').value), y_m:Number($('environmentY').value), z_m:Number($('environmentZ').value)}} : null;
+    const geometry = {geometry_type:geometryType, position:{x_m:Number($('environmentX').value), y_m:Number($('environmentY').value), z_m:Number($('environmentZ').value)}};
+    if (['CIRCLE','SPHERE'].includes(geometryType)) geometry.radius_m = Math.max(0.1, Number($('environmentRadius').value));
+    if (geometryType === 'BOX') { geometry.length_m=Math.max(0.1,Number($('environmentRadius').value)); geometry.width_m=Math.max(0.1,Number($('environmentRadius').value)); geometry.height_m=Math.max(0.1,Number($('environmentRadius').value)); }
+    return geometry;
+  }
+
+  async function addEnvironmentItem() {
+    const scenarioId = $('environmentScenario').value;
+    if (!scenarioId) throw new Error('Select a scenario.');
+    if (state.missionEnvironment) throw new Error('Historical Mission snapshots are immutable. Select a template scenario first.');
+    const kind = $('environmentItemKind').value;
+    const vehicleTypes = $('environmentApplies').value.split(',').map(value => value.trim()).filter(Boolean);
+    const name = $('environmentItemName').value.trim() || 'Environment object';
+    const type = $('environmentItemType').value;
+    const geometry = buildEnvironmentGeometry(kind);
+    let endpoint, payload;
+    if (kind === 'obstacle') {
+      endpoint = `/api/v1/scenarios/${encodeURIComponent(scenarioId)}/obstacles`;
+      payload = {name, obstacle_type:type, geometry, applies_to_vehicle_types:vehicleTypes};
+    } else if (kind === 'constraint') {
+      endpoint = `/api/v1/scenarios/${encodeURIComponent(scenarioId)}/constraints`;
+      payload = {name, constraint_type:type, geometry, value:Number($('environmentRadius').value), unit:$('environmentUnit').value, severity:'MANDATORY', applies_to_vehicle_types:vehicleTypes};
+    } else {
+      endpoint = `/api/v1/scenarios/${encodeURIComponent(scenarioId)}/external-fields`;
+      payload = {name, field_type:type, geometry, vector:{x:Number($('environmentVectorX').value), y:Number($('environmentVectorY').value), z:0, unit:$('environmentUnit').value}, unit:$('environmentUnit').value, applies_to_vehicle_types:vehicleTypes};
+    }
+    $('environmentAddBtn').disabled = true;
+    try {
+      await postJson(endpoint, payload);
+      await loadEnvironmentScenario(scenarioId);
+      const summaries = await getJson('/api/v1/scenarios');
+      state.scenarios = summaries;
+      renderSimulationControls();
+      $('environmentMessage').textContent = `${name} added to ${scenarioId}. Future Missions will use the new scenario version.`;
+    } finally { $('environmentAddBtn').disabled = false; }
+  }
+
+  function renderSimulationRuns() {
+    $('simulationRunCount').textContent = `${state.simulationRuns.length} runs`;
+    $('simulationRunBody').innerHTML = state.simulationRuns.map(run => {
+      const active = ['QUEUED','STARTING','RUNNING','STOPPING'].includes(run.status);
+      const action = active ? `<button data-simulation-stop="${esc(run.run_id)}">Stop</button>` : '—';
+      return `<tr><td>${fmtTime(run.created_at_utc)}</td><td>${esc(run.vehicle_id)}</td><td>${esc(run.vehicle_type)}<br><small>${esc(run.vehicle_profile_id)}</small></td><td>${esc(run.scenario_id)}</td><td>${esc(run.mission_id)}</td><td>${badge(run.status)}</td><td>${run.process_id || '—'}</td><td class="run-actions">${action}</td></tr>`;
+    }).join('') || '<tr><td colspan="8" class="empty">No simulation runs.</td></tr>';
+  }
+
+  async function startSimulation() {
+    const profile = selectedSimulationProfile();
+    if (!profile) throw new Error('Select a valid vehicle profile.');
+    const payload = {
+      vehicle_id: $('simulationVehicleId').value.trim(),
+      vehicle_type: $('simulationVehicleType').value,
+      vehicle_profile_id: profile.profile_id,
+      scenario_id: $('simulationScenario').value,
+      duration_s: Number($('simulationDuration').value),
+      transport: $('simulationTransport').value,
+      random_seed: Number($('simulationSeed').value),
+      parameter_overrides: {},
+      launch_process: true
+    };
+    if (!payload.vehicle_id) throw new Error('Vehicle ID is required.');
+    $('simulationStartBtn').disabled = true;
+    $('simulationMessage').textContent = 'Starting simulator worker…';
+    try {
+      const run = await postJson('/api/v1/simulation-runs', payload);
+      state.simulationRuns = [run, ...state.simulationRuns.filter(item => item.run_id !== run.run_id)];
+      renderSimulationRuns();
+      $('simulationMessage').textContent = `Started ${run.run_id} for ${run.vehicle_id}.`;
+      setTimeout(refreshAll, 800);
+    } finally { $('simulationStartBtn').disabled = false; }
+  }
+
+  async function stopSimulation(runId) {
+    const run = await postJson(`/api/v1/simulation-runs/${encodeURIComponent(runId)}/stop`, {reason:'Stopped from OMIP Operations Console'});
+    state.simulationRuns = [run, ...state.simulationRuns.filter(item => item.run_id !== run.run_id)];
+    renderSimulationRuns();
+    $('simulationMessage').textContent = `Stop requested for ${runId}.`;
+  }
+
+  function formatDuration(seconds) {
+    const total = Math.max(0, Math.floor(Number(seconds || 0)));
+    const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60), s = total % 60;
+    return h ? `${h}h ${m}m ${s}s` : (m ? `${m}m ${s}s` : `${s}s`);
+  }
+
+  function renderSystemMonitoring() {
+    const health = state.systemHealth;
+    const metrics = state.systemMetrics;
+    if (!health || !metrics) return;
+    $('systemOverall').innerHTML = badge(health.overall_status || 'UNKNOWN');
+    $('systemUptime').textContent = formatDuration(health.uptime_seconds);
+    $('systemDatabase').innerHTML = badge(health.components?.database?.status || 'UNKNOWN');
+    const rates = metrics.runtime?.rates || {};
+    const rawRate = Number(rates.raw_messages_received?.one_minute_per_second || 0);
+    const telemetryRate = Number(rates.telemetry_frames_received?.one_minute_per_second || 0);
+    $('systemInputRate').textContent = `${(rawRate + telemetryRate).toFixed(2)} msg/s`;
+    $('systemWsClients').textContent = Number(health.operations?.websocket_clients || 0);
+    const memory = metrics.runtime?.process?.memory_usage_mb;
+    $('systemMemory').textContent = memory == null ? '—' : `${Number(memory).toFixed(1)} MB`;
+    $('platformAlertCount').textContent = state.platformAlerts.filter(a => a.status !== 'RESOLVED').length;
+    $('systemCaptured').textContent = `Checked ${fmtTime(health.captured_at_utc)}`;
+
+    const components = Object.entries(health.components || {});
+    $('componentHealthBody').innerHTML = components.map(([name, item]) => `<tr><td><strong>${esc(name)}</strong></td><td>${badge(item.status || 'UNKNOWN')}</td><td class="component-message">${esc(item.message || '')}</td></tr>`).join('') || '<tr><td colspan="3" class="empty">No component data.</td></tr>';
+
+    $('platformAlertBody').innerHTML = state.platformAlerts.map(alert => {
+      const actions = alert.status === 'RESOLVED' ? '—' : `${alert.status === 'OPEN' ? `<button class="table-action" data-platform-alert-id="${esc(alert.alert_id)}" data-platform-alert-action="acknowledge">Acknowledge</button>` : ''}<button class="table-action" data-platform-alert-id="${esc(alert.alert_id)}" data-platform-alert-action="resolve">Resolve</button>`;
+      return `<tr><td>${fmtTime(alert.last_detected_at_utc)}</td><td>${esc(alert.severity)}</td><td>${esc(alert.component)}</td><td>${esc(alert.alert_type)}</td><td>${badge(alert.status)}</td><td>${actions}</td></tr>`;
+    }).join('') || '<tr><td colspan="6" class="empty">No platform alerts.</td></tr>';
+
+    $('logCount').textContent = `latest ${state.applicationLogs.length}`;
+    $('applicationLogBody').innerHTML = state.applicationLogs.map(log => `<tr><td>${fmtTime(log.timestamp_utc)}</td><td>${badge(log.level === 'ERROR' || log.level === 'CRITICAL' ? 'CRITICAL' : (log.level === 'WARNING' ? 'WARNING' : 'HEALTHY'))}<br><small>${esc(log.level)}</small></td><td>${esc(log.component)}</td><td>${esc(log.event_type)}</td><td class="log-message">${esc(log.message)}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">No application logs.</td></tr>';
+  }
+
+  async function updatePlatformAlert(alertId, action) {
+    await postJson(`/api/v1/system/platform-alerts/${encodeURIComponent(alertId)}/${action}`, {
+      actor: 'dashboard-operator',
+      note: action === 'resolve' ? 'Resolved from the OMIP Operations Console.' : 'Acknowledged from the OMIP Operations Console.'
+    });
+    const [health, alerts, logs] = await Promise.all([
+      getJson('/api/v1/system/health'),
+      getJson('/api/v1/system/platform-alerts?limit=200'),
+      getJson('/api/v1/system/logs?limit=100')
+    ]);
+    state.systemHealth = health; state.platformAlerts = alerts; state.applicationLogs = logs;
+    renderSystemMonitoring();
+  }
+
+
+  function formatBytes(value) {
+    const bytes = Number(value || 0);
+    if (bytes < 1024) return `${bytes} B`;
+    const units = ['KB','MB','GB','TB']; let size = bytes / 1024; let index = 0;
+    while (size >= 1024 && index < units.length - 1) { size /= 1024; index++; }
+    return `${size.toFixed(size >= 100 ? 0 : 1)} ${units[index]}`;
+  }
+
+  function renderStorageManagement() {
+    const summary = state.storageSummary;
+    if (!summary) return;
+    $('storageDbSize').textContent = formatBytes(summary.database_size_bytes);
+    $('storageRawRows').textContent = Number(summary.table_rows?.raw_sensor_messages || 0).toLocaleString();
+    $('storageTelemetryRows').textContent = Number(summary.table_rows?.telemetry || 0).toLocaleString();
+    $('storageDailyGrowth').textContent = formatBytes(summary.estimated_daily_growth_bytes);
+    $('storageExportJobs').textContent = state.exportJobs.length.toLocaleString();
+    $('storageBackups').textContent = state.backups.length.toLocaleString();
+    $('storageCaptured').textContent = `Updated ${fmtTime(summary.captured_at_utc)}`;
+    $('exportJobBody').innerHTML = state.exportJobs.map(job => `<tr><td>${fmtTime(job.created_at_utc)}</td><td>${esc(job.mission_id)}</td><td>${esc(job.export_format)}</td><td>${badge(job.state === 'COMPLETED' ? 'HEALTHY' : (job.state === 'FAILED' ? 'CRITICAL' : 'WARNING'))}<br><small>${esc(job.state)}</small></td><td>${Number(job.progress_percent || 0)}%</td><td>${job.download_ready ? `<a href="/api/v1/export-jobs/${encodeURIComponent(job.job_id)}/download">Download</a>` : '—'}</td></tr>`).join('') || '<tr><td colspan="6" class="empty">No export jobs.</td></tr>';
+    $('backupBody').innerHTML = state.backups.map(item => `<tr><td>${fmtTime(item.created_at_utc)}</td><td>${esc(item.label)}</td><td>${badge(item.state === 'COMPLETED' ? 'HEALTHY' : (item.state === 'FAILED' ? 'CRITICAL' : 'WARNING'))}<br><small>${esc(item.state)}</small></td><td>${formatBytes(item.file_size_bytes)}</td><td>${item.download_ready ? `<a href="/api/v1/storage/backups/${encodeURIComponent(item.backup_id)}/download">Download</a>` : '—'}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">No backups.</td></tr>';
+  }
+
+  async function runStorageOperation(path, body = null) {
+    $('storageMessage').textContent = 'Running storage operation…';
+    try {
+      const result = body == null ? await postJson(path, {}) : await postJson(path, body);
+      $('storageMessage').textContent = JSON.stringify(result);
+      setTimeout(refreshAll, 250);
+    } catch (error) {
+      $('storageMessage').textContent = `Storage operation failed: ${error.message}`;
+    }
+  }
+
+  function renderSummary(acquisition) {
+    // Summary cards are intentionally global. Selecting a vehicle filters the
+    // detailed panels, but never changes the registered fleet totals.
+    const vehicles = state.vehicles;
+    const sensors = state.sensors;
+    $('vehicleCount').textContent = vehicles.length;
+    $('activeVehicles').textContent = vehicles.filter(v => v.connection_status === 'ONLINE' && v.active_mission_id).length;
+    $('sensorCount').textContent = sensors.length;
+    $('onlineSensors').textContent = sensors.filter(s => s.connection_status === 'ONLINE').length;
+    $('rawCount').textContent = vehicles.reduce((sum, v) => sum + Number(v.raw_message_count || 0), 0).toLocaleString();
+    $('integrityCount').textContent = state.integrityEvents.length.toLocaleString();
+    $('openAlertCount').textContent = state.alerts.filter(a => a.status === 'OPEN').length.toLocaleString();
+    const mqtt = acquisition.mqtt;
+    const mqttLabel = mqtt.connected ? 'ON' : (mqtt.enabled ? (mqtt.last_error ? 'ERROR' : 'WAIT') : 'OFF');
+    $('mqttState').textContent = mqttLabel;
+    $('mqttDetail').textContent = mqtt.enabled
+      ? `${mqtt.host}:${mqtt.port}${mqtt.last_error ? ' — ' + mqtt.last_error : (mqtt.connected ? ' — connected' : ' — connecting')}`
+      : 'HTTP mode available';
+    $('mqttToggleBtn').textContent = mqtt.enabled ? 'Disable' : 'Enable';
+    if ($('mqttConfigPanel').classList.contains('hidden')) {
+      $('mqttHostInput').value = mqtt.host || '127.0.0.1';
+      $('mqttPortInput').value = mqtt.port || 1883;
+    }
+  }
+
+  function renderSelectors(force = false) {
+    const currentVehicle = state.selectedVehicle;
+    const vehicleSelect = $('vehicleSelect');
+    const missionSelect = $('missionSelect');
+    const missions = currentVehicle ? state.missions.filter(m => m.vehicle_id === currentVehicle) : state.missions;
+
+    const vehicleSignature = state.vehicles.map(v => `${v.vehicle_id}|${v.vehicle_name}`).join('~');
+    if (force || (vehicleSelect.dataset.signature !== vehicleSignature && document.activeElement !== vehicleSelect)) {
+      vehicleSelect.innerHTML = '<option value="">All vehicles</option>' + state.vehicles.map(v => `<option value="${esc(v.vehicle_id)}">${esc(v.vehicle_name)} (${esc(v.vehicle_id)})</option>`).join('');
+      vehicleSelect.dataset.signature = vehicleSignature;
+    }
+    vehicleSelect.value = currentVehicle;
+
+    const missionSignature = `${currentVehicle}::` + missions.map(m => `${m.mission_id}|${m.name}|${m.status}`).join('~');
+    if (force || (missionSelect.dataset.signature !== missionSignature && document.activeElement !== missionSelect)) {
+      missionSelect.innerHTML = '<option value="">Live stream</option>' + missions.map(m => `<option value="${esc(m.mission_id)}">${esc(m.name)} [${esc(m.status)}]</option>`).join('');
+      missionSelect.dataset.signature = missionSignature;
+    }
+
+    const selectedStillAvailable = [...missionSelect.options].some(option => option.value === state.selectedMission);
+    if (selectedStillAvailable) missionSelect.value = state.selectedMission;
+    else if (!state.missionLoading) {
+      state.selectedMission = '';
+      missionSelect.value = '';
+    }
+    $('loadMissionBtn').disabled = !missionSelect.value || state.missionLoading;
+  }
+
+  function renderFleet() {
+    $('fleetViewLabel').textContent = state.selectedVehicle ? `View: ${state.selectedVehicle}` : 'View: all vehicles';
+    const rows = state.vehicles.map(v => {
+      const mission = v.active_mission_id
+        ? `<strong>${esc(v.active_mission_id)}</strong><br><small>RUNNING</small>`
+        : `<span>${esc(v.latest_mission_status || 'none')}</span><br><small>${esc(v.latest_mission_id || '')}</small>`;
+      const heartbeat = v.last_heartbeat_state
+        ? `<strong>${esc(v.last_heartbeat_state)}</strong><br><small>${fmtTime(v.last_heartbeat_received_at_utc)} · ${Number(v.heartbeat_count || 0).toLocaleString()}</small>`
+        : '—';
+      return `
+      <tr data-id="${esc(v.vehicle_id)}" class="${v.vehicle_id === state.selectedVehicle ? 'selected' : ''}">
+        <td><strong>${esc(v.vehicle_name)}</strong><br><small>${esc(v.vehicle_id)}</small></td>
+        <td>${esc(v.vehicle_type)}<br><small>${esc(v.vehicle_profile_id || 'unassigned')}</small></td><td title="${esc(v.connection_status_reason)}">${badge(v.connection_status)}<br><small>${v.activity_age_s == null ? '—' : Number(v.activity_age_s).toFixed(1) + 's ago'}</small></td>
+        <td>${mission}</td><td>${heartbeat}</td>
+        <td>${v.sensor_count}</td><td>${Number(v.telemetry_count).toLocaleString()}</td><td>${Number(v.raw_message_count).toLocaleString()}</td>
+        <td>${fmtTime(v.last_activity_at_utc)}</td>
+      </tr>`;
+    }).join('');
+    $('fleetBody').innerHTML = rows || '<tr><td colspan="9" class="empty">No registered vehicles.</td></tr>';
+    document.querySelectorAll('#fleetBody tr[data-id]').forEach(row => row.onclick = () => selectVehicle(row.dataset.id));
+  }
+
+  function renderSensors() {
+    const sensors = state.selectedVehicle ? state.sensors.filter(s => s.vehicle_id === state.selectedVehicle) : state.sensors;
+    $('sensorVehicleLabel').textContent = state.selectedVehicle || 'All vehicles';
+    $('sensorBody').innerHTML = sensors.map(s => `
+      <tr><td><strong>${esc(s.sensor_name)}</strong><br><small>${esc(s.sensor_id)}</small></td>
+      <td>${esc(s.sensor_type)}</td><td title="${esc(s.connection_status_reason)}">${badge(s.connection_status)}<br><small>${s.activity_age_s == null ? '—' : Number(s.activity_age_s).toFixed(1) + 's ago'}</small></td>
+      <td>${s.sampling_rate_hz ?? '—'} Hz</td><td>${Number(s.message_count).toLocaleString()}</td>
+      <td>${Number(s.invalid_message_count).toLocaleString()}</td><td>${esc(s.last_transport || '—')}</td><td>${fmtTime(s.last_seen_at_utc)}</td></tr>`).join('') || '<tr><td colspan="8" class="empty">No sensors for this selection.</td></tr>';
+  }
+
+  function clearTelemetryFields() {
+    ['liveVehicle','liveSpeed','liveBattery','liveMode','liveX','liveY','liveZ','liveHeading','liveConfidence'].forEach(id => $(id).textContent = '—');
+  }
+
+  function latestVisibleTelemetry() {
+    if (state.selectedVehicle) return state.latestTelemetry[state.selectedVehicle] || null;
+    return Object.values(state.latestTelemetry).sort((a, b) => new Date(b.timestamp_utc) - new Date(a.timestamp_utc))[0] || null;
+  }
+
+  function selectVehicle(vehicleId) {
+    state.selectedVehicle = state.selectedVehicle === vehicleId ? '' : vehicleId;
+    state.selectedMission = '';
+    state.historyPoints = [];
+    state.historyRaw = [];
+    state.missionEnvironment = null;
+    state.integrityMetrics = null;
+    state.obstacleInteractions = []; state.obstacleSummary = null;
+    renderIntegrityMetrics(); renderObstacleInteractions();
+    renderEnvironmentContext();
+    $('trajectoryMode').textContent = 'LIVE';
+    $('missionSelectionState').textContent = 'Live stream';
+    $('missionSelectionState').className = 'mission-state';
+    updateExportControls('');
+    renderFleet(); renderSensors(); renderSelectors(); renderRaw(); renderIntegrity();
+    const latest = latestVisibleTelemetry();
+    if (latest) renderTelemetryFields(latest); else clearTelemetryFields();
+    draw();
+    $('vehicleSelect').value = state.selectedVehicle;
+  }
+
+  function renderTelemetryFields(data) {
+    $('liveVehicle').textContent = data.vehicle_id;
+    $('liveSpeed').textContent = `${Number(data.velocity.speed_mps).toFixed(2)} m/s`;
+    $('liveBattery').textContent = `${Number(data.state.battery_percent).toFixed(1)}%`;
+    $('liveMode').textContent = data.state.operating_mode;
+    $('liveX').textContent = `${Number(data.position.x_m).toFixed(2)} m`;
+    $('liveY').textContent = `${Number(data.position.y_m).toFixed(2)} m`;
+    $('liveZ').textContent = `${Number(data.position.z_m ?? 0).toFixed(2)} m`;
+    $('liveHeading').textContent = `${Number(data.orientation.heading_deg).toFixed(1)}°`;
+    $('liveConfidence').textContent = Number(data.quality.confidence).toFixed(2);
+  }
+
+  function updateTelemetry(data) {
+    const vehicleId = data.vehicle_id;
+    if (!state.trajectories[vehicleId]) state.trajectories[vehicleId] = [];
+    state.trajectories[vehicleId].push({x: Number(data.position.x_m), y: Number(data.position.y_m), z: Number(data.position.z_m ?? 0)});
+    if (state.trajectories[vehicleId].length > 1500) state.trajectories[vehicleId].shift();
+    state.latestTelemetry[vehicleId] = data;
+    if (state.selectedMission) return;
+    if (!state.selectedVehicle || state.selectedVehicle === vehicleId) renderTelemetryFields(data);
+    draw();
+  }
+
+  function addRaw(data) {
+    state.raw.unshift(data);
+    if (state.raw.length > 200) state.raw.pop();
+    if (!state.selectedMission) renderRaw();
+  }
+
+  function renderRaw() {
+    const source = state.selectedMission ? state.historyRaw : state.raw;
+    const rows = source.filter(r => {
+      if (state.selectedMission && r.mission_id !== state.selectedMission) return false;
+      if (state.selectedVehicle && r.vehicle_id !== state.selectedVehicle) return false;
+      return true;
+    }).slice(0, 30);
+    $('rawStreamLabel').textContent = state.selectedMission ? 'history' : (state.selectedVehicle || 'all vehicles');
+    $('rawBody').innerHTML = rows.map(r => `
+      <tr><td>${fmtTime(r.timestamp_utc)}</td><td>${esc(r.sensor_id)}</td><td>${esc(r.message_type)}</td>
+      <td>${esc(r.transport)}</td><td>${r.quality?.valid ? 'yes' : 'no'}</td>
+      <td class="raw-json">${esc(JSON.stringify(r.payload))}</td></tr>`).join('') || '<tr><td colspan="6" class="empty">No raw messages for this view.</td></tr>';
+  }
+
+  function visibleSeries() {
+    if (state.selectedMission) return [{id: state.selectedMission, points: state.historyPoints}];
+    if (state.selectedVehicle) return [{id: state.selectedVehicle, points: state.trajectories[state.selectedVehicle] || []}];
+    return Object.entries(state.trajectories).map(([id, points]) => ({id, points}));
+  }
+
+  function activeEnvironment() { return state.missionEnvironment || state.currentEnvironment || null; }
+
+  function geometryPoints(geometry) {
+    if (!geometry) return [];
+    if (geometry.geometry_type === 'POLYGON') return (geometry.points || []).map(p => ({x:Number(p.x_m||0), y:Number(p.y_m||0), z:Number(p.z_m||0)}));
+    const p = geometry.position || {};
+    const x=Number(p.x_m||0), y=Number(p.y_m||0), z=Number(p.z_m||0);
+    if (['CIRCLE','SPHERE'].includes(geometry.geometry_type)) {
+      const r=Number(geometry.radius_m||0); return [{x:x-r,y,z},{x:x+r,y,z},{x,y:y-r,z},{x,y:y+r,z},{x,y,z:z-r},{x,y,z:z+r}];
+    }
+    if (geometry.geometry_type === 'BOX') {
+      const lx=Number(geometry.length_m||0)/2, wy=Number(geometry.width_m||0)/2, hz=Number(geometry.height_m||0)/2;
+      return [{x:x-lx,y:y-wy,z:z-hz},{x:x+lx,y:y+wy,z:z+hz},{x:x-lx,y:y+wy,z},{x:x+lx,y:y-wy,z}];
+    }
+    return [{x,y,z}];
+  }
+
+  function environmentExtentPoints(environment) {
+    if (!environment) return [];
+    const points=[];
+    if ($('layerObstacles').checked) (environment.obstacles||[]).forEach(item => points.push(...geometryPoints(item.geometry)));
+    if ($('layerConstraints').checked) (environment.constraints||[]).forEach(item => points.push(...geometryPoints(item.geometry)));
+    if ($('layerFields').checked) (environment.external_fields||[]).forEach(item => {
+      const geometry = geometryPoints(item.geometry);
+      points.push(...geometry);
+      const origin=geometry[0] || {x:0,y:0,z:0}; const v=item.vector||{};
+      points.push({x:origin.x+Number(v.x||0)*8,y:origin.y+Number(v.y||0)*8,z:origin.z+Number(v.z||0)*8});
+    });
+    return points;
+  }
+
+  function drawEnvironmentLayer(environment, axes, sx, sy) {
+    if (!environment) return;
+    const pointValue=(p,key)=>Number(p?.[key]??0);
+    const drawGeometry=(geometry, stroke, fill, label) => {
+      if (!geometry) return;
+      const type=geometry.geometry_type, pos=geometry.position||{};
+      ctx.strokeStyle=stroke; ctx.fillStyle=fill; ctx.lineWidth=1.5;
+      if (['CIRCLE','SPHERE'].includes(type)) {
+        const centerH=pointValue({x:pos.x_m,y:pos.y_m,z:pos.z_m},axes[0]);
+        const centerV=pointValue({x:pos.x_m,y:pos.y_m,z:pos.z_m},axes[1]);
+        const radius=Number(geometry.radius_m||0);
+        const rx=Math.abs(sx(centerH+radius)-sx(centerH)); const ry=Math.abs(sy(centerV+radius)-sy(centerV));
+        ctx.beginPath(); ctx.ellipse(sx(centerH),sy(centerV),Math.max(rx,3),Math.max(ry,3),0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+        if(label){ctx.fillStyle=stroke;ctx.font='10px Segoe UI';ctx.fillText(label,sx(centerH)+5,sy(centerV)-5);}
+      } else if (type==='BOX') {
+        const p={x:Number(pos.x_m||0),y:Number(pos.y_m||0),z:Number(pos.z_m||0)};
+        const size={x:Number(geometry.length_m||0),y:Number(geometry.width_m||0),z:Number(geometry.height_m||0)};
+        const h=p[axes[0]],v=p[axes[1]],hw=(size[axes[0]]||0)/2,hv=(size[axes[1]]||0)/2;
+        const left=sx(h-hw),right=sx(h+hw),top=sy(v+hv),bottom=sy(v-hv); ctx.fillRect(left,top,right-left,bottom-top);ctx.strokeRect(left,top,right-left,bottom-top);
+      } else if (type==='POLYGON') {
+        const points=geometry.points||[]; if(points.length<2)return;ctx.beginPath();points.forEach((p,i)=>{const q={x:p.x_m,y:p.y_m,z:p.z_m};i?ctx.lineTo(sx(q[axes[0]]||0),sy(q[axes[1]]||0)):ctx.moveTo(sx(q[axes[0]]||0),sy(q[axes[1]]||0));});ctx.closePath();ctx.fill();ctx.stroke();
+      } else {
+        const q={x:pos.x_m,y:pos.y_m,z:pos.z_m};ctx.beginPath();ctx.arc(sx(q[axes[0]]||0),sy(q[axes[1]]||0),4,0,Math.PI*2);ctx.fill();ctx.stroke();
+      }
+    };
+    if ($('layerConstraints').checked) (environment.constraints||[]).forEach(item => drawGeometry(item.geometry,'#ffd166','rgba(255,209,102,.10)',item.constraint_type));
+    if ($('layerObstacles').checked) (environment.obstacles||[]).forEach(item => drawGeometry(item.geometry,'#ff6b6b','rgba(255,107,107,.22)',item.name));
+    if ($('layerFields').checked) (environment.external_fields||[]).forEach(item => {
+      const geometry=item.geometry; const p=geometry?.position||{x_m:0,y_m:0,z_m:0}; const origin={x:Number(p.x_m||0),y:Number(p.y_m||0),z:Number(p.z_m||0)}; const v=item.vector||{};
+      const end={x:origin.x+Number(v.x||0)*8,y:origin.y+Number(v.y||0)*8,z:origin.z+Number(v.z||0)*8};
+      ctx.strokeStyle='#3ddc97';ctx.fillStyle='#3ddc97';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(sx(origin[axes[0]]),sy(origin[axes[1]]));ctx.lineTo(sx(end[axes[0]]),sy(end[axes[1]]));ctx.stroke();ctx.beginPath();ctx.arc(sx(end[axes[0]]),sy(end[axes[1]]),3,0,Math.PI*2);ctx.fill();
+      ctx.font='10px Segoe UI';ctx.fillText(item.field_type,sx(end[axes[0]])+4,sy(end[axes[1]])-4);
+    });
+  }
+
+  function draw() {
+    const width = canvas.width, height = canvas.height;
+    ctx.clearRect(0, 0, width, height);
+    ctx.strokeStyle = '#16304a'; ctx.lineWidth = 1;
+    for (let i=1;i<10;i++) { ctx.beginPath(); ctx.moveTo(i*width/10,0); ctx.lineTo(i*width/10,height); ctx.stroke(); }
+    for (let i=1;i<6;i++) { ctx.beginPath(); ctx.moveTo(0,i*height/6); ctx.lineTo(width,i*height/6); ctx.stroke(); }
+    const series = visibleSeries().filter(item => item.points.length > 0);
+    const environment = activeEnvironment();
+    const allPoints = [...series.flatMap(item => item.points), ...environmentExtentPoints(environment)];
+    if (allPoints.length < 2) {
+      ctx.fillStyle='#91a6bf'; ctx.font='14px Segoe UI';
+      ctx.fillText(state.selectedVehicle ? `Waiting for ${state.selectedVehicle} telemetry…` : 'Waiting for fleet telemetry…', 24, 34);
+      return;
+    }
+    const projection = state.projection || 'XY';
+    const axes = projection === 'XZ' ? ['x','z'] : (projection === 'YZ' ? ['y','z'] : ['x','y']);
+    const horizontal = allPoints.map(p=>Number(p[axes[0]] ?? 0));
+    const vertical = allPoints.map(p=>Number(p[axes[1]] ?? 0));
+    let minX=Math.min(...horizontal), maxX=Math.max(...horizontal), minY=Math.min(...vertical), maxY=Math.max(...vertical);
+    if (maxX-minX<1) { minX-=.5; maxX+=.5; } if (maxY-minY<1) { minY-=.5; maxY+=.5; }
+    const pad=28, sx=value=>pad+(value-minX)/(maxX-minX)*(width-2*pad), sy=value=>height-pad-(value-minY)/(maxY-minY)*(height-2*pad);
+    drawEnvironmentLayer(environment, axes, sx, sy);
+    if ($('layerSafety').checked) {
+      const interactions = state.selectedMission ? (state.obstacleInteractions.length ? [state.obstacleInteractions[0]] : []) : Object.values(state.latestObstacleInteraction);
+      interactions.forEach(item => {
+        const telemetry = state.selectedMission ? null : state.latestTelemetry[item.vehicle_id];
+        const position = telemetry?.position || item.details?.vehicle_position;
+        if (!position || item.safety_radius_m == null) return;
+        const q={x:Number(position.x_m||0),y:Number(position.y_m||0),z:Number(position.z_m||0)};
+        const r=Number(item.safety_radius_m||0);
+        const h=q[axes[0]],v=q[axes[1]];
+        const rx=Math.abs(sx(h+r)-sx(h)),ry=Math.abs(sy(v+r)-sy(v));
+        ctx.strokeStyle='#4cc9f0';ctx.setLineDash([5,4]);ctx.lineWidth=1.3;ctx.beginPath();ctx.ellipse(sx(h),sy(v),Math.max(3,rx),Math.max(3,ry),0,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+      });
+    }
+    const palette=['#4cc9f0','#ff9f1c','#3ddc97','#c77dff','#ffd166','#ff5d73'];
+    series.forEach((item,index) => {
+      if (!item.points.length) return;
+      const colour=palette[index % palette.length];
+      ctx.strokeStyle=colour; ctx.lineWidth=2.5; ctx.beginPath();
+      item.points.forEach((p,i)=> i ? ctx.lineTo(sx(Number(p[axes[0]] ?? 0)),sy(Number(p[axes[1]] ?? 0))) : ctx.moveTo(sx(Number(p[axes[0]] ?? 0)),sy(Number(p[axes[1]] ?? 0)))); ctx.stroke();
+      const last=item.points[item.points.length-1]; const lastH=Number(last[axes[0]] ?? 0), lastV=Number(last[axes[1]] ?? 0); ctx.fillStyle=colour; ctx.beginPath(); ctx.arc(sx(lastH),sy(lastV),6,0,Math.PI*2); ctx.fill();
+      if (!state.selectedMission) { ctx.font='11px Segoe UI'; ctx.fillText(item.id, sx(lastH)+9, sy(lastV)-8); }
+    });
+    ctx.fillStyle='#91a6bf'; ctx.font='11px Segoe UI';
+    ctx.fillText(`${axes[0].toUpperCase()} ${minX.toFixed(1)} → ${maxX.toFixed(1)} m`, 12, height-9);
+    ctx.fillText(`${axes[1].toUpperCase()} ${minY.toFixed(1)} → ${maxY.toFixed(1)} m`, width-150, height-9);
+  }
+
+  function currentObstacleInteraction() {
+    if (state.selectedMission && state.obstacleInteractions.length) return state.obstacleInteractions[0];
+    if (state.selectedVehicle) return state.latestObstacleInteraction[state.selectedVehicle] || null;
+    const values = Object.values(state.latestObstacleInteraction);
+    const order = {UNKNOWN:-1,CLEAR:0,CAUTION:1,WARNING:2,CRITICAL:3,COLLISION:4};
+    return values.sort((a,b)=>(order[b.risk_level]||0)-(order[a.risk_level]||0))[0] || null;
+  }
+
+  function renderObstacleInteractions() {
+    const current = currentObstacleInteraction();
+    $('obstacleScopeLabel').textContent = state.selectedMission || state.selectedVehicle || 'Live fleet';
+    $('obstacleRisk').textContent = current?.risk_level || 'UNKNOWN';
+    $('obstacleNearest').textContent = current?.details?.obstacle_name || current?.obstacle_id || '—';
+    $('obstacleClearance').textContent = current?.clearance_m == null ? '—' : `${Number(current.clearance_m).toFixed(2)} m`;
+    $('obstacleTtc').textContent = current?.time_to_collision_s == null ? '—' : `${Number(current.time_to_collision_s).toFixed(2)} s`;
+    $('obstacleSafetyRadius').textContent = current?.safety_radius_m == null ? '—' : `${Number(current.safety_radius_m).toFixed(2)} m`;
+    $('obstacleAvoidance').textContent = current?.avoidance_active ? 'ACTIVE' : 'INACTIVE';
+    const rows = state.selectedMission
+      ? state.obstacleInteractions
+      : Object.values(state.latestObstacleInteraction).sort((a,b)=>new Date(b.timestamp_utc)-new Date(a.timestamp_utc));
+    $('obstacleInteractionBody').innerHTML = rows.slice(0,100).map(item => `<tr>
+      <td>${fmtTime(item.timestamp_utc)}</td><td>${badge(item.risk_level)}</td>
+      <td>${esc(item.details?.obstacle_name || item.obstacle_id)}</td>
+      <td>${Number(item.clearance_m).toFixed(2)} m</td>
+      <td>${item.time_to_collision_s == null ? '—' : Number(item.time_to_collision_s).toFixed(2) + ' s'}</td>
+      <td>${Number(item.closing_speed_mps || 0).toFixed(2)} m/s</td>
+      <td>${item.avoidance_active ? 'ACTIVE' : '—'}</td>
+    </tr>`).join('') || '<tr><td colspan="7" class="empty">No obstacle interaction samples.</td></tr>';
+  }
+
+  function scopedAlerts() {
+    return state.alerts.filter(alert =>
+      (!state.selectedVehicle || alert.vehicle_id === state.selectedVehicle) &&
+      (!state.selectedMission || alert.mission_id === state.selectedMission)
+    );
+  }
+
+  function scopedIntegrityEvents() {
+    return state.integrityEvents.filter(event =>
+      (!state.selectedVehicle || event.vehicle_id === state.selectedVehicle) &&
+      (!state.selectedMission || event.mission_id === state.selectedMission)
+    );
+  }
+
+  function renderIntegrity() {
+    const scope = state.selectedMission || state.selectedVehicle || 'Fleet';
+    $('alertScopeLabel').textContent = scope;
+    $('integrityScopeLabel').textContent = scope;
+    const alerts = scopedAlerts();
+    $('alertBody').innerHTML = alerts.map(alert => {
+      const actions = alert.status === 'RESOLVED'
+        ? '—'
+        : `${alert.status === 'OPEN' ? `<button class="table-action" data-alert-id="${esc(alert.alert_id)}" data-alert-action="acknowledge">Acknowledge</button>` : ''}<button class="table-action" data-alert-id="${esc(alert.alert_id)}" data-alert-action="resolve">Resolve</button>`;
+      return `<tr><td>${fmtTime(alert.last_detected_at_utc)}</td><td>${esc(alert.severity)}</td><td>${esc(alert.alert_type)}</td><td>${esc(alert.vehicle_id)}<br><small>${esc(alert.sensor_id || 'TELEMETRY')}</small></td><td>${badge(alert.status)}</td><td>${Number(alert.occurrence_count || 1)}</td><td>${actions}</td></tr>`;
+    }).join('') || '<tr><td colspan="7" class="empty">No alerts in the current scope.</td></tr>';
+
+    const integrityEvents = scopedIntegrityEvents();
+    $('integrityBody').innerHTML = integrityEvents.map(event => `<tr><td>${fmtTime(event.detected_at_utc)}</td><td>${esc(event.check_type)}<br><small>${esc(event.severity)}</small></td><td>${esc(event.sensor_id || event.stream_kind)}</td><td>${Number(event.sequence_no)}</td><td class="integrity-description">${esc(event.description)}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">No integrity events in the current scope.</td></tr>';
+  }
+
+  function renderIntegrityMetrics() {
+    const metrics = state.integrityMetrics;
+    $('integrityMetricsScope').textContent = metrics?.mission_id || 'Select a mission';
+    const sensors = metrics?.sensors || [];
+    $('integrityMetricsBody').innerHTML = sensors.map(item => `<tr>
+      <td>${esc(item.sensor_id)}</td><td>${badge(item.health_status)}</td>
+      <td>${item.expected_rate_hz == null ? '—' : Number(item.expected_rate_hz).toFixed(2) + ' Hz'}</td>
+      <td>${item.actual_rate_hz == null ? '—' : Number(item.actual_rate_hz).toFixed(2) + ' Hz'}</td>
+      <td>${Number(item.missing_messages || 0)}</td><td>${Number(item.duplicate_messages || 0)}</td><td>${Number(item.out_of_order_messages || 0)}</td>
+      <td>${item.average_latency_ms == null ? '—' : Number(item.average_latency_ms).toFixed(1) + ' ms'}</td>
+      <td>${item.p95_latency_ms == null ? '—' : Number(item.p95_latency_ms).toFixed(1) + ' ms'}</td>
+      <td>${item.maximum_latency_ms == null ? '—' : Number(item.maximum_latency_ms).toFixed(1) + ' ms'}</td>
+    </tr>`).join('') || `<tr><td colspan="10" class="empty">${state.selectedMission ? 'No sensor data is available for this mission.' : 'Select a historical mission to load integrity metrics.'}</td></tr>`;
+  }
+
+  async function refreshIntegrity() {
+    const requests = [
+      getJson('/api/v1/alerts?limit=500'),
+      getJson('/api/v1/integrity-events?limit=500')
+    ];
+    if (state.selectedMission) requests.push(getJson(`/api/v1/missions/${encodeURIComponent(state.selectedMission)}/integrity-metrics`));
+    const results = await Promise.all(requests);
+    state.alerts = results[0];
+    state.integrityEvents = results[1];
+    if (state.selectedMission) state.integrityMetrics = results[2];
+    renderIntegrity();
+    renderIntegrityMetrics();
+    if (state.acquisition) renderSummary(state.acquisition);
+  }
+
+  async function updateAlert(alertId, action) {
+    await postJson(`/api/v1/alerts/${encodeURIComponent(alertId)}/${action}`, {
+      actor: 'dashboard-operator',
+      note: action === 'resolve' ? 'Resolved from the OMIP Operations Console.' : 'Acknowledged from the OMIP Operations Console.'
+    });
+    await refreshIntegrity();
+  }
+
+  async function loadMission(missionId) {
+    const loadToken = ++state.missionLoadToken;
+    state.selectedMission = missionId;
+    state.historyPoints = [];
+    state.historyRaw = [];
+    state.missionEnvironment = null;
+
+    if (!missionId) {
+      state.missionLoading = false;
+      state.integrityMetrics = null;
+      state.obstacleInteractions = []; state.obstacleSummary = null;
+      renderIntegrityMetrics(); renderObstacleInteractions();
+      $('trajectoryMode').textContent = 'LIVE';
+      $('missionSelectionState').textContent = 'Live stream';
+      $('missionSelectionState').className = 'mission-state';
+      $('eventMissionLabel').textContent = 'Select a mission';
+      $('eventList').innerHTML = '<div class="empty">No mission selected.</div>';
+      updateExportControls('');
+      renderEnvironmentContext();
+      renderSelectors(); renderRaw(); draw();
+      return;
+    }
+
+    state.missionLoading = true;
+    const mission = state.missions.find(m => m.mission_id === missionId);
+    if (mission) state.selectedVehicle = mission.vehicle_id;
+    $('vehicleSelect').value = state.selectedVehicle;
+    $('missionSelect').value = missionId;
+    $('loadMissionBtn').disabled = true;
+    $('trajectoryMode').textContent = 'LOADING';
+    $('missionSelectionState').textContent = `Loading ${missionId}…`;
+    $('missionSelectionState').className = 'mission-state loading';
+    $('eventMissionLabel').textContent = missionId;
+    $('eventList').innerHTML = '<div class="empty">Loading mission events…</div>';
+
+    // Export links are made available immediately. Preview loading is independent
+    // from the download endpoints, so a large or partially damaged Mission does
+    // not prevent the operator from exporting its data.
+    updateExportControls(missionId, null, null, 'Loading trajectory preview…');
+    renderFleet(); renderSensors(); renderSelectors();
+
+    const results = await Promise.allSettled([
+      getJson(`/api/v1/missions/${encodeURIComponent(missionId)}/telemetry?limit=20000`),
+      getJson(`/api/v1/raw-messages?mission_id=${encodeURIComponent(missionId)}&limit=200`),
+      getJson(`/api/v1/missions/${encodeURIComponent(missionId)}/events`),
+      getJson(`/api/v1/missions/${encodeURIComponent(missionId)}/integrity-metrics`),
+      getJson(`/api/v1/missions/${encodeURIComponent(missionId)}/environment`),
+      getJson(`/api/v1/missions/${encodeURIComponent(missionId)}/obstacle-interactions?limit=2000`),
+      getJson(`/api/v1/missions/${encodeURIComponent(missionId)}/obstacle-summary`)
+    ]);
+
+    if (loadToken !== state.missionLoadToken) return;
+
+    const errors = [];
+    let telemetry = [];
+    let raw = [];
+    let events = [];
+
+    if (results[0].status === 'fulfilled') telemetry = results[0].value || [];
+    else errors.push(`telemetry: ${results[0].reason?.message || results[0].reason}`);
+    if (results[1].status === 'fulfilled') raw = results[1].value || [];
+    else errors.push(`raw messages: ${results[1].reason?.message || results[1].reason}`);
+    if (results[2].status === 'fulfilled') events = results[2].value || [];
+    else errors.push(`events: ${results[2].reason?.message || results[2].reason}`);
+    if (results[3].status === 'fulfilled') state.integrityMetrics = results[3].value || null;
+    else { state.integrityMetrics = null; errors.push(`integrity metrics: ${results[3].reason?.message || results[3].reason}`); }
+    if (results[4].status === 'fulfilled') state.missionEnvironment = results[4].value || null;
+    else { state.missionEnvironment = null; errors.push(`environment: ${results[4].reason?.message || results[4].reason}`); }
+    if (results[5].status === 'fulfilled') state.obstacleInteractions = results[5].value || [];
+    else { state.obstacleInteractions = []; errors.push(`obstacle interactions: ${results[5].reason?.message || results[5].reason}`); }
+    if (results[6].status === 'fulfilled') state.obstacleSummary = results[6].value || null;
+    else { state.obstacleSummary = null; errors.push(`obstacle summary: ${results[6].reason?.message || results[6].reason}`); }
+
+    state.historyPoints = telemetry.map(t => ({
+      x: Number(t.position?.x_m ?? 0),
+      y: Number(t.position?.y_m ?? 0),
+      z: Number(t.position?.z_m ?? 0)
+    }));
+    state.historyRaw = raw;
+
+    if (telemetry.length) renderTelemetryFields(telemetry[telemetry.length - 1]);
+    else clearTelemetryFields();
+    renderRaw();
+    renderEvents(events, missionId);
+    renderIntegrityMetrics();
+    renderEnvironmentContext();
+    renderObstacleInteractions();
+    updateExportControls(missionId, telemetry.length, raw.length, errors.join('; '));
+    draw();
+
+    state.missionLoading = false;
+    $('trajectoryMode').textContent = errors.length ? 'HISTORY*' : 'HISTORY';
+    $('missionSelectionState').textContent = errors.length ? 'Loaded with warnings' : 'Mission loaded';
+    $('missionSelectionState').className = errors.length ? 'mission-state error' : 'mission-state ready';
+    renderSelectors();
+    renderIntegrity();
+  }
+
+  function updateExportControls(missionId, telemetryCount = null, rawCount = null, warning = '') {
+    const controls = {
+      exportTelemetryCsv: missionId ? `/api/v1/missions/${encodeURIComponent(missionId)}/export?format=csv` : '#',
+      exportTelemetryJsonl: missionId ? `/api/v1/missions/${encodeURIComponent(missionId)}/export?format=jsonl` : '#',
+      exportRawCsv: missionId ? `/api/v1/missions/${encodeURIComponent(missionId)}/raw/export?format=csv` : '#',
+      exportRawJsonl: missionId ? `/api/v1/missions/${encodeURIComponent(missionId)}/raw/export?format=jsonl` : '#',
+      exportPackage: missionId ? `/api/v1/missions/${encodeURIComponent(missionId)}/export/package` : '#'
+    };
+    Object.entries(controls).forEach(([id, href]) => {
+      const element = $(id);
+      element.href = href;
+      element.classList.toggle('disabled', !missionId);
+      if (missionId) element.setAttribute('download', ''); else element.removeAttribute('download');
+    });
+    $('exportMissionLabel').textContent = missionId || 'Select a mission';
+    $('createBackgroundExport').disabled = !missionId;
+    $('exportStatus').textContent = missionId
+      ? `Ready to export ${missionId}.${telemetryCount == null ? '' : ` Loaded preview: ${telemetryCount.toLocaleString()} telemetry rows and ${Number(rawCount || 0).toLocaleString()} raw rows.`}${warning ? ` ${warning}` : ''}`
+      : 'No mission selected. Select a historical mission to enable export.';
+  }
+
+  function renderEvents(events, missionId) {
+    $('eventMissionLabel').textContent = missionId;
+    $('eventList').innerHTML = events.map(e=>`<div class="event"><time>${fmtTime(e.start_timestamp_utc)}</time><div><div class="event-type">${esc(e.event_type)}</div><div>${esc(e.description)}</div></div><span class="severity">${esc(e.severity)}</span></div>`).join('') || '<div class="empty">No event annotations for this mission.</div>';
+  }
+
+  async function setMqttEnabled(enabled, useFormValues = false) {
+    const controls = [$('mqttToggleBtn'), $('mqttApplyBtn')];
+    controls.forEach(button => button.disabled = true);
+    $('mqttMessage').textContent = enabled ? 'Applying MQTT settings…' : 'Disabling MQTT bridge…';
+    try {
+      const port = Number($('mqttPortInput').value);
+      if (enabled && (!Number.isInteger(port) || port < 1 || port > 65535)) throw new Error('MQTT port must be between 1 and 65535.');
+      const payload = {enabled};
+      if (enabled) {
+        payload.host = useFormValues ? $('mqttHostInput').value.trim() : (state.acquisition?.mqtt?.host || $('mqttHostInput').value.trim());
+        payload.port = useFormValues ? port : Number(state.acquisition?.mqtt?.port || port);
+        if (!payload.host) throw new Error('MQTT broker host is required.');
+      }
+      const acquisition = await putJson('/api/v1/acquisition/mqtt', payload);
+      state.acquisition = acquisition;
+      renderSummary(acquisition);
+      const mqtt = acquisition.mqtt;
+      $('mqttMessage').textContent = !mqtt.enabled
+        ? 'MQTT bridge disabled. HTTP acquisition remains available.'
+        : (mqtt.connected
+          ? `Connected to ${mqtt.host}:${mqtt.port}.`
+          : `MQTT bridge enabled and connecting to ${mqtt.host}:${mqtt.port}. The external broker must be running.`);
+    } catch (error) {
+      $('mqttMessage').textContent = `MQTT change failed: ${error.message}`;
+    } finally {
+      controls.forEach(button => button.disabled = false);
+      setTimeout(refreshAll, 700);
+    }
+  }
+
+  function toggleMqttConfig() {
+    $('mqttConfigPanel').classList.toggle('hidden');
+  }
+
+  function connectStream() {
+    const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
+    const ws = new WebSocket(`${scheme}://${location.host}/ws/stream`);
+    ws.onopen = () => { $('wsState').textContent='Stream connected'; $('wsState').className='connected'; };
+    ws.onmessage = event => {
+      const message = JSON.parse(event.data);
+      if (message.stream_type === 'telemetry') updateTelemetry(message.data);
+      if (message.stream_type === 'raw_sensor') addRaw(message.data);
+      if (message.stream_type === 'heartbeat') { $('fleetUpdated').textContent = `Heartbeat ${fmtTime(message.data.received_at_utc)}`; }
+      if (message.stream_type === 'integrity_event') { state.integrityEvents.unshift(message.data); state.integrityEvents = state.integrityEvents.slice(0, 500); renderIntegrity(); if (state.acquisition) renderSummary(state.acquisition); }
+      if (message.stream_type === 'alert') { state.alerts = [message.data, ...state.alerts.filter(a => a.alert_id !== message.data.alert_id)].slice(0, 500); renderIntegrity(); if (state.acquisition) renderSummary(state.acquisition); }
+      if (message.stream_type === 'acquisition_status') {
+        state.acquisition = {...(state.acquisition || {}), ...message.data};
+        renderSummary(state.acquisition);
+      }
+      if (message.stream_type === 'platform_alert') {
+        state.platformAlerts = [message.data, ...state.platformAlerts.filter(a => a.alert_id !== message.data.alert_id)].slice(0, 200);
+        renderSystemMonitoring();
+      }
+      if (message.stream_type === 'application_log') {
+        state.applicationLogs = [message.data, ...state.applicationLogs.filter(a => a.log_id !== message.data.log_id)].slice(0, 100);
+        renderSystemMonitoring();
+      }
+      if (message.stream_type === 'system_metric') { setTimeout(refreshAll, 100); }
+      if (message.stream_type === 'simulation_run') { state.simulationRuns = [message.data, ...state.simulationRuns.filter(item => item.run_id !== message.data.run_id)]; renderSimulationRuns(); }
+      if (message.stream_type === 'obstacle_interaction') {
+        state.latestObstacleInteraction[message.data.vehicle_id] = message.data;
+        if (state.selectedMission === message.data.mission_id) state.obstacleInteractions = [message.data, ...state.obstacleInteractions].slice(0,2000);
+        renderObstacleInteractions(); draw();
+      }
+    };
+    ws.onclose = () => { $('wsState').textContent='Stream disconnected'; $('wsState').className='disconnected'; setTimeout(connectStream, 1500); };
+    ws.onerror = () => ws.close();
+    setInterval(() => { if (ws.readyState === WebSocket.OPEN) ws.send('ping'); }, 15000);
+  }
+
+  $('platformAlertBody').addEventListener('click', event => {
+    const button = event.target.closest('button[data-platform-alert-id]');
+    if (!button) return;
+    button.disabled = true;
+    updatePlatformAlert(button.dataset.platformAlertId, button.dataset.platformAlertAction).catch(error => {
+      button.disabled = false;
+      $('systemCaptured').textContent = `Action failed: ${error.message}`;
+    });
+  });
+
+  $('alertBody').addEventListener('click', event => {
+    const button = event.target.closest('button[data-alert-id]');
+    if (!button) return;
+    button.disabled = true;
+    updateAlert(button.dataset.alertId, button.dataset.alertAction).catch(error => {
+      button.disabled = false;
+      $('alertScopeLabel').textContent = `Action failed: ${error.message}`;
+    });
+  });
+
+
+  $('storageIntegrityBtn').onclick = async () => {
+    try { const result = await getJson('/api/v1/storage/integrity-check'); $('storageMessage').textContent = `Integrity check: ${result.status} — ${result.messages.join(', ')}`; }
+    catch (error) { $('storageMessage').textContent = error.message; }
+  };
+  $('storageCheckpointBtn').onclick = () => runStorageOperation('/api/v1/storage/maintenance/checkpoint');
+  $('storageAnalyzeBtn').onclick = () => runStorageOperation('/api/v1/storage/maintenance/analyze');
+  $('storageBackupBtn').onclick = async () => {
+    const label = prompt('Backup label', 'manual'); if (!label) return;
+    await runStorageOperation('/api/v1/storage/backups', {label});
+  };
+  $('storageCleanupPreviewBtn').onclick = async () => {
+    try { const result = await getJson('/api/v1/storage/cleanup/preview'); $('storageMessage').textContent = `Cleanup preview: ${Number(result.total_eligible_rows).toLocaleString()} eligible rows. No data was deleted.`; }
+    catch (error) { $('storageMessage').textContent = error.message; }
+  };
+  $('createBackgroundExport').onclick = async () => {
+    if (!state.selectedMission) return;
+    try {
+      const job = await postJson('/api/v1/export-jobs', {mission_id: state.selectedMission, export_format: 'package'});
+      $('exportStatus').textContent = `Background export queued: ${job.job_id}`;
+      setTimeout(refreshAll, 300);
+    } catch (error) { $('exportStatus').textContent = `Export job failed: ${error.message}`; }
+  };
+
+  $('simulationVehicleType').onchange = () => { renderSimulationControls(); };
+  $('simulationProfile').onchange = renderSimulationProfilePreview;
+  $('simulationScenario').onchange = event => {
+    $('environmentScenario').value = event.target.value;
+    loadEnvironmentScenario(event.target.value).catch(error => { $('environmentMessage').textContent = `Environment load failed: ${error.message}`; });
+  };
+  $('environmentScenario').onchange = event => loadEnvironmentScenario(event.target.value).catch(error => { $('environmentMessage').textContent = `Environment load failed: ${error.message}`; });
+  $('environmentReloadBtn').onclick = () => loadEnvironmentScenario($('environmentScenario').value).catch(error => { $('environmentMessage').textContent = `Environment load failed: ${error.message}`; });
+  $('environmentItemKind').onchange = updateEnvironmentTypeOptions;
+  $('environmentAddBtn').onclick = () => addEnvironmentItem().catch(error => { $('environmentMessage').textContent = `Add failed: ${typeof error.message === 'string' ? error.message : JSON.stringify(error.message)}`; });
+  ['layerObstacles','layerConstraints','layerFields','layerSafety'].forEach(id => $(id).onchange = draw);
+  $('simulationStartBtn').onclick = () => startSimulation().catch(error => { $('simulationMessage').textContent = `Start failed: ${error.message}`; });
+  $('simulationRunBody').addEventListener('click', event => {
+    const button = event.target.closest('button[data-simulation-stop]');
+    if (!button) return;
+    button.disabled = true;
+    stopSimulation(button.dataset.simulationStop).catch(error => { button.disabled = false; $('simulationMessage').textContent = `Stop failed: ${error.message}`; });
+  });
+
+  $('refreshBtn').onclick = refreshAll;
+  $('vehicleSelect').onchange = event => {
+    state.selectedVehicle = event.target.value;
+    state.selectedMission = '';
+    state.historyPoints = [];
+    state.historyRaw = [];
+    state.missionEnvironment = null;
+    state.integrityMetrics = null;
+    renderIntegrityMetrics();
+    renderEnvironmentContext();
+    $('trajectoryMode').textContent = 'LIVE';
+    $('missionSelectionState').textContent = 'Live stream';
+    $('missionSelectionState').className = 'mission-state';
+    updateExportControls('');
+    renderFleet(); renderSensors(); renderSelectors(); renderRaw(); renderIntegrity();
+    const latest = latestVisibleTelemetry();
+    if (latest) renderTelemetryFields(latest); else clearTelemetryFields();
+    draw();
+  };
+  $('missionSelect').addEventListener('change', event => {
+    const missionId = event.target.value;
+    $('loadMissionBtn').disabled = !missionId;
+    loadMission(missionId).catch(error => {
+      state.missionLoading = false;
+      $('trajectoryMode').textContent = 'ERROR';
+      $('missionSelectionState').textContent = error.message;
+      $('missionSelectionState').className = 'mission-state error';
+      updateExportControls(missionId, null, null, `Preview failed: ${error.message}`);
+      renderSelectors();
+    });
+  });
+  $('loadMissionBtn').onclick = () => {
+    const missionId = $('missionSelect').value;
+    if (missionId) loadMission(missionId).catch(error => {
+      state.missionLoading = false;
+      $('missionSelectionState').textContent = error.message;
+      $('missionSelectionState').className = 'mission-state error';
+      renderSelectors();
+    });
+  };
+  $('projectionSelect').onchange = event => { state.projection = event.target.value; draw(); };
+  $('mqttToggleBtn').onclick = () => setMqttEnabled(!(state.acquisition?.mqtt?.enabled), false);
+  $('mqttConfigBtn').onclick = toggleMqttConfig;
+  $('mqttCloseBtn').onclick = toggleMqttConfig;
+  $('mqttApplyBtn').onclick = () => setMqttEnabled(true, true);
+  updateEnvironmentTypeOptions(); updateExportControls(''); draw(); renderRaw(); renderObstacleInteractions(); refreshAll(); connectStream(); setInterval(refreshAll, 6000);
+</script>
+</body>
+</html>

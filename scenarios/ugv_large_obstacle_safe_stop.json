@@ -1,0 +1,49 @@
+{
+  "scenario_id": "ugv_large_obstacle_safe_stop",
+  "name": "UGV large obstacle safe-stop test",
+  "default_duration_s": 30,
+  "motion": {
+    "forward_speed_mps": 2.0,
+    "lateral_amplitude_m": 0.0,
+    "secondary_amplitude_m": 0.0,
+    "vertical_amplitude_m": 0.0
+  },
+  "obstacle_avoidance": {
+    "enabled": true,
+    "lookahead_s": 8.0,
+    "clearance_margin_m": 1.0,
+    "maximum_offset_m": 3.0,
+    "automatic_offset_expansion": true,
+    "hard_offset_limit_m": 5.0
+  },
+  "sensor_rates_hz": {
+    "GNSS": 5,
+    "IMU": 20,
+    "BATTERY": 1,
+    "VEHICLE_STATUS": 2
+  },
+  "quality": {},
+  "faults": {},
+  "obstacles": [
+    {
+      "obstacle_id": "LARGE-BLOCK",
+      "name": "Oversized route blocker",
+      "obstacle_type": "STATIC_OBSTACLE",
+      "enabled": true,
+      "geometry": {
+        "geometry_type": "CIRCLE",
+        "position": {
+          "x_m": 20,
+          "y_m": 0,
+          "z_m": 0
+        },
+        "radius_m": 7.0
+      },
+      "applies_to_vehicle_types": [
+        "GROUND_VEHICLE"
+      ]
+    }
+  ],
+  "constraints": [],
+  "external_fields": []
+}

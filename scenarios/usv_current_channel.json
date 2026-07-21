@@ -1,0 +1,20 @@
+{
+  "scenario_id": "usv_current_channel",
+  "name": "USV current and channel boundary",
+  "description": "Surface vessel mission with water current, channel boundary and navigation buoy.",
+  "coordinate_frame": "LOCAL_ENU",
+  "default_duration_s": 100,
+  "sensor_rates_hz": {"GNSS": 5.0, "IMU": 15.0, "BATTERY": 1.0, "VEHICLE_STATUS": 2.0},
+  "motion": {"forward_speed_mps": 2.2, "lateral_amplitude_m": 8.0, "lateral_period_s": 30.0, "vertical_amplitude_m": 0.0, "battery_drain_percent_per_s": 0.025},
+  "quality": {"position_noise_std_m": 0.03, "confidence": 0.98},
+  "faults": {},
+  "obstacles": [
+    {"obstacle_id": "USV-OBS-BUOY-001", "name": "Navigation buoy", "obstacle_type": "STATIC_OBSTACLE", "geometry": {"geometry_type": "CIRCLE", "position": {"x_m": 42.0, "y_m": 5.0, "z_m": 0.0}, "radius_m": 1.2}, "applies_to_vehicle_types": ["USV"]}
+  ],
+  "constraints": [
+    {"constraint_id": "USV-CON-CHANNEL-001", "name": "Navigation channel", "constraint_type": "REQUIRED_CORRIDOR", "geometry": {"geometry_type": "POLYGON", "points": [{"x_m": -5.0, "y_m": -14.0, "z_m": 0.0}, {"x_m": 180.0, "y_m": -14.0, "z_m": 0.0}, {"x_m": 180.0, "y_m": 14.0, "z_m": 0.0}, {"x_m": -5.0, "y_m": 14.0, "z_m": 0.0}]}, "severity": "MANDATORY", "applies_to_vehicle_types": ["USV"]}
+  ],
+  "external_fields": [
+    {"field_id": "USV-FIELD-CURRENT-001", "name": "Tidal current", "field_type": "WATER_CURRENT", "coordinate_frame": "LOCAL_ENU", "vector": {"x": 0.12, "y": -0.22, "z": 0.0, "unit": "m/s"}, "unit": "m/s", "applies_to_vehicle_types": ["USV"]}
+  ]
+}

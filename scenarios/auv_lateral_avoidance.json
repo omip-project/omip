@@ -1,0 +1,97 @@
+{
+  "scenario_id": "auv_lateral_avoidance",
+  "name": "AUV lateral obstacle avoidance",
+  "description": "An AUV preserves its operating depth and moves laterally around an underwater structure while a weak current disturbs the route.",
+  "coordinate_frame": "LOCAL_ENU",
+  "default_duration_s": 45,
+  "sensor_rates_hz": {
+    "GNSS": 5.0,
+    "IMU": 20.0,
+    "BATTERY": 1.0,
+    "VEHICLE_STATUS": 4.0
+  },
+  "motion": {
+    "forward_speed_mps": 1.4,
+    "lateral_amplitude_m": 0.0,
+    "lateral_period_s": 35.0,
+    "secondary_amplitude_m": 0.0,
+    "secondary_period_s": 12.0,
+    "vertical_amplitude_m": 0.2,
+    "vertical_period_s": 40.0,
+    "battery_drain_percent_per_s": 0.03
+  },
+  "obstacle_avoidance": {
+    "enabled": true,
+    "lookahead_s": 5.0,
+    "clearance_margin_m": 1.0,
+    "maximum_offset_m": 6.0,
+    "automatic_offset_expansion": true,
+    "hard_offset_limit_m": 18.0
+  },
+  "quality": {
+    "position_noise_std_m": 0.015,
+    "confidence": 0.99
+  },
+  "faults": {},
+  "obstacles": [
+    {
+      "obstacle_id": "AUV-ACTIVE-OBS-001",
+      "name": "Subsea frame",
+      "obstacle_type": "UNDERWATER_STRUCTURE",
+      "geometry": {
+        "geometry_type": "SPHERE",
+        "position": {
+          "x_m": 25.0,
+          "y_m": 0.0,
+          "z_m": -16.0
+        },
+        "radius_m": 3.0
+      },
+      "applies_to_vehicle_types": [
+        "AUV"
+      ]
+    }
+  ],
+  "constraints": [
+    {
+      "constraint_id": "AUV-ACTIVE-MAXDEPTH",
+      "name": "Maximum depth",
+      "constraint_type": "MAXIMUM_DEPTH",
+      "value": 30.0,
+      "unit": "m",
+      "severity": "MANDATORY",
+      "applies_to_vehicle_types": [
+        "AUV"
+      ]
+    },
+    {
+      "constraint_id": "AUV-ACTIVE-MINDEPTH",
+      "name": "Minimum operating depth",
+      "constraint_type": "MINIMUM_DEPTH",
+      "value": 8.0,
+      "unit": "m",
+      "severity": "MANDATORY",
+      "applies_to_vehicle_types": [
+        "AUV"
+      ]
+    }
+  ],
+  "external_fields": [
+    {
+      "field_id": "AUV-ACTIVE-CURRENT",
+      "name": "Cross current",
+      "field_type": "OCEAN_CURRENT",
+      "coordinate_frame": "LOCAL_ENU",
+      "vector": {
+        "x": 0.04,
+        "y": -0.08,
+        "z": 0.0,
+        "unit": "m/s"
+      },
+      "unit": "m/s",
+      "applies_to_vehicle_types": [
+        "AUV"
+      ]
+    }
+  ]
+}

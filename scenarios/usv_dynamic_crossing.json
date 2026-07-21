@@ -1,0 +1,21 @@
+{
+  "scenario_id": "usv_dynamic_crossing",
+  "name": "USV dynamic vessel crossing",
+  "description": "A surface vehicle reacts to a moving vessel crossing the nominal route.",
+  "coordinate_frame": "LOCAL_ENU",
+  "default_duration_s": 45,
+  "sensor_rates_hz": {"GNSS": 5.0, "IMU": 20.0, "BATTERY": 1.0, "VEHICLE_STATUS": 4.0},
+  "motion": {"forward_speed_mps": 1.8, "lateral_amplitude_m": 0.0, "lateral_period_s": 30.0, "battery_drain_percent_per_s": 0.025},
+  "obstacle_avoidance": {"enabled": true, "lookahead_s": 5.0, "clearance_margin_m": 1.2, "maximum_offset_m": 7.0},
+  "quality": {"position_noise_std_m": 0.02, "confidence": 0.99},
+  "faults": {},
+  "obstacles": [
+    {"obstacle_id": "USV-DYNAMIC-OBS-001", "name": "Crossing vessel", "obstacle_type": "DYNAMIC_OBSTACLE", "geometry": {"geometry_type": "CIRCLE", "position": {"x_m": 30.0, "y_m": -9.0, "z_m": 0.0}, "radius_m": 2.5}, "velocity": {"x": 0.0, "y": 0.35, "z": 0.0, "unit": "m/s"}, "applies_to_vehicle_types": ["USV"]}
+  ],
+  "constraints": [
+    {"constraint_id": "USV-DYNAMIC-CHANNEL", "name": "Navigation channel", "constraint_type": "MISSION_BOUNDARY", "geometry": {"geometry_type": "POLYGON", "points": [{"x_m": -5, "y_m": -15, "z_m": 0}, {"x_m": 100, "y_m": -15, "z_m": 0}, {"x_m": 100, "y_m": 15, "z_m": 0}, {"x_m": -5, "y_m": 15, "z_m": 0}]}, "severity": "MANDATORY", "applies_to_vehicle_types": ["USV"]}
+  ],
+  "external_fields": [
+    {"field_id": "USV-DYNAMIC-CURRENT", "name": "Channel current", "field_type": "WATER_CURRENT", "coordinate_frame": "LOCAL_ENU", "vector": {"x": 0.05, "y": 0.02, "z": 0.0, "unit": "m/s"}, "unit": "m/s", "applies_to_vehicle_types": ["USV"]}
+  ]
+}
