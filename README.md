@@ -1,5 +1,10 @@
 <div align="center">
-<img src="brand/logo/omip-logo-dark.svg" width="400" alt="OMIP Logo">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="brand/logo/omip-logo-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="brand/logo/omip-logo-light.svg">
+  <img src="brand/logo/omip-logo-light.svg" width="400" alt="OMIP Logo">
+</picture>
      
 # Open Mission Intelligence Platform
 
