@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="brand/banner/github-banner.png" width="100%">
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="brand/logo/omip-logo-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="brand/logo/omip-logo-light.svg">
