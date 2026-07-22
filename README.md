@@ -1,5 +1,6 @@
 <div align="center">
-
+<img src="brand/logo/omip-logo.svg" width="220" alt="OMIP Logo">
+     
 # Open Mission Intelligence Platform
 
 ### Mission data infrastructure for heterogeneous autonomous vehicles
