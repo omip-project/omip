@@ -25,7 +25,7 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
      inkscape:zoom="1.4142136"
-     inkscape:cx="526.79454"
+     inkscape:cx="527.50164"
      inkscape:cy="382.89831"
      inkscape:window-width="3440"
      inkscape:window-height="1369"
@@ -192,19 +192,15 @@
        rx="14.058102"
        ry="14.792015" />
     <path
-       style="fill:#000000;fill-rule:evenodd;stroke-width:8.65223;stroke-dasharray:none"
-       d="m 31.167284,115.11707 c 12.043102,0 12.043102,0 12.043102,0 v 0"
-       id="path2" />
-    <path
-       style="fill:#5fbcd3;fill-rule:evenodd;stroke:#000000;stroke-width:0.953851;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Dot)"
+       style="fill:#ffffff;fill-rule:evenodd;stroke:#ffffff;stroke-width:0.953851;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Dot)"
        d="m 29.544602,115.11707 c 11.902524,0 11.902524,0 11.902524,0 v 0"
        id="path4" />
     <path
-       style="fill:#5fbcd3;fill-rule:evenodd;stroke:#000000;stroke-width:0.953851;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1;marker-start:url(#Dot)"
+       style="fill:#ffffff;fill-rule:evenodd;stroke:#ffffff;stroke-width:0.953851;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1;marker-start:url(#Dot)"
        d="m 95.447968,115.11707 c 11.902522,0 11.902522,0 11.902522,0 v 0"
        id="path4-6" />
     <path
-       style="fill:#5fbcd3;fill-rule:evenodd;stroke:#000000;stroke-width:0.953851;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1;marker-start:url(#Dot)"
+       style="fill:#ffffff;fill-rule:evenodd;stroke:#ffffff;stroke-width:0.953851;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1;marker-start:url(#Dot)"
        d="m 68.514971,142.77705 c 0,13.90558 0,13.90558 0,13.90558"
        id="path5" />
     <path
@@ -226,7 +222,7 @@
        inkscape:transform-center-y="1.8470471"
        transform="matrix(1.9345111,0,0,2.1619466,-13.379327,51.727955)" />
     <path
-       style="fill:#5fbcd3;fill-rule:evenodd;stroke:#000000;stroke-width:0.953851;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Dot-1)"
+       style="fill:#ffffff;fill-rule:evenodd;stroke:#ffffff;stroke-width:0.953851;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Dot-1)"
        d="m 68.514971,73.240257 c 0,13.905566 0,13.905566 0,13.905566"
        id="path5-4" />
     <use
@@ -259,10 +255,9 @@
        y="0"
        xlink:href="#path1-2"
        id="use13" />
-    <use
-       x="0"
-       y="0"
-       xlink:href="#path2"
+    <path
+       style="fill:#000000;fill-rule:evenodd;stroke-width:8.65223;stroke-dasharray:none"
+       d="m 31.167284,115.11707 c 12.043102,0 12.043102,0 12.043102,0 v 0"
        id="use14" />
     <use
        x="0"
@@ -275,7 +270,7 @@
        y="0"
        xlink:href="#path4-6"
        id="use16"
-       style="fill:#ffffff;stroke:#ffffff" />
+       style="mix-blend-mode:normal;fill:#ffffff;stroke:#ffffff" />
     <use
        x="0"
        y="0"
@@ -294,7 +289,7 @@
        y="0"
        xlink:href="#path5-4"
        id="use19"
-       style="stroke:#ffffff;stroke-opacity:1" />
+       style="stroke:#ffffff;stroke-opacity:1;fill:#ffffff;fill-opacity:1" />
     <text
        xml:space="preserve"
        transform="matrix(0.26458333,0,0,0.26458333,-0.25627348,12.894588)"
