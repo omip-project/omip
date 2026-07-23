@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import threading
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
 from typing import Any
@@ -38,11 +39,53 @@ class MqttBridge:
         self.connected = False
         self.started = False
         self.last_error: str | None = None
+        self._connected_event = threading.Event()
+        self._connection_timeout_s = 8.0
+
+    @staticmethod
+    def _reason_code_is_failure(reason_code: Any) -> bool:
+        """Return whether a Paho MQTT reason code represents failure.
+
+        Paho MQTT 2.x uses ReasonCode objects whose string representation may be
+        "Success" and whose boolean/int behaviour is not consistent with the
+        legacy integer return codes. This helper supports both APIs.
+        """
+        is_failure = getattr(reason_code, "is_failure", None)
+        if isinstance(is_failure, bool):
+            return is_failure
+        if callable(is_failure):
+            try:
+                return bool(is_failure())
+            except TypeError:
+                pass
+
+        value = getattr(reason_code, "value", None)
+        if value is not None:
+            try:
+                return int(value) != 0
+            except (TypeError, ValueError):
+                pass
+
+        if isinstance(reason_code, int):
+            return reason_code != 0
+
+        text = str(reason_code).strip().lower()
+        if text in {"success", "normal disconnection", "0"}:
+            return False
+        if text:
+            return True
+
+        return bool(reason_code)
 
     def start(self, loop: asyncio.AbstractEventLoop) -> None:
         if self.started:
             return
+
         self.loop = loop
+        self.connected = False
+        self.last_error = None
+        self._connected_event.clear()
+
         try:
             import paho.mqtt.client as mqtt
         except ImportError as exc:
@@ -51,22 +94,56 @@ class MqttBridge:
 
         self.client = mqtt.Client(
             mqtt.CallbackAPIVersion.VERSION2,
-            client_id="omip-backend-v043",
+            client_id="omip-backend-v0532",
         )
         self.client.on_connect = self._on_connect
+        self.client.on_connect_fail = self._on_connect_fail
         self.client.on_disconnect = self._on_disconnect
         self.client.on_message = self._on_message
+        self.client.reconnect_delay_set(min_delay=1, max_delay=15)
+
         try:
-            # connect_async plus loop_start lets Paho continue retrying when the
-            # broker is temporarily unavailable.
-            self.client.connect_async(self.host, self.port, keepalive=30)
+            logger.info(
+                "Starting OMIP MQTT bridge for %s:%s "
+                "(raw=%s, telemetry=%s, heartbeat=%s)",
+                self.host,
+                self.port,
+                self.raw_topic,
+                self.telemetry_topic,
+                self.heartbeat_topic,
+            )
+            self.client.connect(self.host, self.port, keepalive=30)
             self.client.loop_start()
             self.started = True
-            self.last_error = None
+
+            if not self._connected_event.wait(timeout=self._connection_timeout_s):
+                self.last_error = (
+                    f"MQTT connection acknowledgement timed out after "
+                    f"{self._connection_timeout_s:.1f}s"
+                )
+                logger.error(self.last_error)
+                self.stop()
+                raise RuntimeError(self.last_error)
+
+            if not self.connected:
+                raise RuntimeError(self.last_error or "MQTT connection was not accepted")
         except Exception as exc:  # pragma: no cover - network dependent
-            self.last_error = str(exc)
+            if self.last_error is None:
+                self.last_error = str(exc)
+            client = self.client
             self.client = None
             self.started = False
+            self.connected = False
+            self._connected_event.clear()
+            if client is not None:
+                try:
+                    client.loop_stop()
+                except Exception:
+                    logger.debug("MQTT loop stop after startup failure failed", exc_info=True)
+                try:
+                    client.disconnect()
+                except Exception:
+                    logger.debug("MQTT disconnect after startup failure failed", exc_info=True)
             raise
 
     def stop(self) -> None:
@@ -74,6 +151,7 @@ class MqttBridge:
         self.client = None
         self.started = False
         self.connected = False
+        self._connected_event.clear()
         if client is None:
             return
         try:
@@ -86,32 +164,73 @@ class MqttBridge:
             except Exception:  # pragma: no cover - network dependent
                 logger.debug("MQTT loop stop failed", exc_info=True)
 
-    def _on_connect(self, client: Any, userdata: Any, flags: Any, reason_code: Any, properties: Any) -> None:
-        if int(reason_code) == 0:
+    def _on_connect(
+        self,
+        client: Any,
+        userdata: Any,
+        flags: Any,
+        reason_code: Any,
+        properties: Any,
+    ) -> None:
+        logger.info("MQTT on_connect fired: reason=%s", reason_code)
+        if not self._reason_code_is_failure(reason_code):
+            subscriptions = [
+                (self.raw_topic, 1),
+                (self.telemetry_topic, 1),
+                (self.heartbeat_topic, 1),
+            ]
+            result, message_id = client.subscribe(subscriptions)
+            if result != 0:
+                self.connected = False
+                self.last_error = (
+                    f"MQTT subscription failed with code {result} "
+                    f"(message_id={message_id})"
+                )
+                self._connected_event.set()
+                logger.error(self.last_error)
+                return
+
             self.connected = True
             self.last_error = None
-            client.subscribe(
-                [
-                    (self.raw_topic, 1),
-                    (self.telemetry_topic, 1),
-                    (self.heartbeat_topic, 1),
-                ]
+            self._connected_event.set()
+            logger.info(
+                "OMIP MQTT bridge connected to %s:%s and subscribed to %s",
+                self.host,
+                self.port,
+                [topic for topic, _ in subscriptions],
             )
-            logger.info("OMIP MQTT bridge connected to %s:%s", self.host, self.port)
-        else:  # pragma: no cover - broker dependent
+        else:
             self.connected = False
             self.last_error = f"MQTT connection rejected: {reason_code}"
+            self._connected_event.set()
             logger.error(self.last_error)
 
+    def _on_connect_fail(self, client: Any, userdata: Any) -> None:
+        self.connected = False
+        self.last_error = f"MQTT connection failed: {self.host}:{self.port}"
+        self._connected_event.set()
+        logger.error(self.last_error)
+
     def _on_disconnect(
-        self, client: Any, userdata: Any, disconnect_flags: Any, reason_code: Any, properties: Any
+        self,
+        client: Any,
+        userdata: Any,
+        disconnect_flags: Any,
+        reason_code: Any,
+        properties: Any,
     ) -> None:
         self.connected = False
-        if self.started and int(reason_code) != 0:
-            self.last_error = f"MQTT disconnected: {reason_code}"
+        self._connected_event.clear()
+        unexpected = self._reason_code_is_failure(reason_code)
+
+        if self.started and unexpected:
+            self.last_error = f"MQTT disconnected unexpectedly: {reason_code}"
             logger.warning(self.last_error)
+        else:
+            logger.info("MQTT disconnected: reason=%s", reason_code)
 
     def _on_message(self, client: Any, userdata: Any, mqtt_message: Any) -> None:
+        logger.debug("MQTT message received: %s", mqtt_message.topic)
         if self.loop is None:
             return
         try:

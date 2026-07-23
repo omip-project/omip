@@ -1,0 +1,460 @@
+### Health
+GET http://127.0.0.1:8000/api/v1/health
+
+### Acquisition status
+GET http://127.0.0.1:8000/api/v1/acquisition/status
+
+### Register vehicle
+POST http://127.0.0.1:8000/api/v1/vehicles
+Content-Type: application/json
+
+{
+  "vehicle_id": "OMIP-SIM-001",
+  "vehicle_name": "Primary simulation vehicle",
+  "vehicle_type": "SIMULATED",
+  "manufacturer": "OMIP",
+  "model": "v0.3.1 simulator",
+  "description": "Four-sensor test vehicle"
+}
+
+### Register GNSS sensor
+POST http://127.0.0.1:8000/api/v1/vehicles/OMIP-SIM-001/sensors
+Content-Type: application/json
+
+{
+  "sensor_id": "OMIP-SIM-001-GNSS-001",
+  "sensor_name": "Primary GNSS",
+  "sensor_type": "GNSS",
+  "unit": "m",
+  "sampling_rate_hz": 5,
+  "coordinate_frame": "LOCAL_ENU"
+}
+
+### Create mission
+POST http://127.0.0.1:8000/api/v1/missions
+Content-Type: application/json
+
+{
+  "mission_id": "MISSION-DEMO-001",
+  "vehicle_id": "OMIP-SIM-001",
+  "name": "v0.3.1 acquisition demonstration",
+  "scenario_name": "multi_sensor_nominal",
+  "description": "Heartbeat and raw-sensor demonstration"
+}
+
+### Start mission
+POST http://127.0.0.1:8000/api/v1/missions/MISSION-DEMO-001/start
+
+### Submit vehicle heartbeat
+POST http://127.0.0.1:8000/api/v1/vehicles/OMIP-SIM-001/heartbeat
+Content-Type: application/json
+
+{
+  "schema_version": "0.3.1",
+  "message_id": "d7335aba-87b8-465d-a45f-99d00ca9760a",
+  "vehicle_id": "OMIP-SIM-001",
+  "mission_id": "MISSION-DEMO-001",
+  "timestamp_utc": "2026-07-18T07:10:10.000+00:00",
+  "state": "RUNNING",
+  "source": "manual-api-example",
+  "metadata": {
+    "pending_messages": 0
+  }
+}
+
+### Heartbeat history
+GET http://127.0.0.1:8000/api/v1/vehicles/OMIP-SIM-001/heartbeats?limit=100
+
+### Submit GNSS raw message
+POST http://127.0.0.1:8000/api/v1/raw-messages
+Content-Type: application/json
+
+{
+  "schema_version": "0.3.1",
+  "message_id": "4c80fd31-f6dc-44ab-98af-1f5ddce92589",
+  "vehicle_id": "OMIP-SIM-001",
+  "sensor_id": "OMIP-SIM-001-GNSS-001",
+  "mission_id": "MISSION-DEMO-001",
+  "sequence_no": 0,
+  "timestamp_utc": "2026-07-18T07:10:12.420+00:00",
+  "message_type": "GNSS",
+  "payload": {
+    "coordinate_frame": "LOCAL_ENU",
+    "x_m": 1.0,
+    "y_m": 2.0,
+    "z_m": 0.0,
+    "vx_mps": 1.2,
+    "vy_mps": 0.3,
+    "vz_mps": 0.0
+  },
+  "quality": {
+    "valid": true,
+    "position_source": "SIMULATED",
+    "confidence": 0.98
+  }
+}
+
+### Inspect vehicle status
+GET http://127.0.0.1:8000/api/v1/vehicles/OMIP-SIM-001
+
+### List raw messages for mission
+GET http://127.0.0.1:8000/api/v1/raw-messages?mission_id=MISSION-DEMO-001&limit=100
+
+### Sensor quality
+GET http://127.0.0.1:8000/api/v1/sensors/OMIP-SIM-001-GNSS-001/quality?mission_id=MISSION-DEMO-001
+
+### Add mission event
+POST http://127.0.0.1:8000/api/v1/missions/MISSION-DEMO-001/events
+Content-Type: application/json
+
+{
+  "vehicle_id": "OMIP-SIM-001",
+  "event_type": "GNSS_DROPOUT",
+  "start_timestamp_utc": "2026-07-18T07:10:20.000+00:00",
+  "end_timestamp_utc": "2026-07-18T07:10:28.000+00:00",
+  "severity": "WARNING",
+  "source": "MANUAL",
+  "description": "GNSS unavailable for eight seconds."
+}
+
+### Complete mission — vehicle changes to INACTIVE
+POST http://127.0.0.1:8000/api/v1/missions/MISSION-DEMO-001/complete
+
+### Telemetry CSV export
+GET http://127.0.0.1:8000/api/v1/missions/MISSION-DEMO-001/export?format=csv
+
+### Raw JSONL export
+GET http://127.0.0.1:8000/api/v1/missions/MISSION-DEMO-001/raw/export?format=jsonl
+
+### v0.3.2 - MQTT runtime status
+GET http://127.0.0.1:8000/api/v1/acquisition/status
+
+### v0.3.2 - Enable or reconfigure MQTT
+PUT http://127.0.0.1:8000/api/v1/acquisition/mqtt
+Content-Type: application/json
+
+{
+  "enabled": true,
+  "host": "127.0.0.1",
+  "port": 1883
+}
+
+### v0.3.2 - Disable MQTT
+PUT http://127.0.0.1:8000/api/v1/acquisition/mqtt
+Content-Type: application/json
+
+{
+  "enabled": false
+}
+
+
+### v0.3.3 - Complete mission export package
+GET http://127.0.0.1:8000/api/v1/missions/MISSION-DEMO-001/export/package
+
+### v0.3.4 - Mission preview used by Dashboard
+GET http://127.0.0.1:8000/api/v1/missions/MISSION-ID/telemetry?limit=20000
+
+### v0.3.4 - Mission raw-message preview used by Dashboard
+GET http://127.0.0.1:8000/api/v1/raw-messages?mission_id=MISSION-ID&limit=200
+
+
+### v0.4.0 - List integrity events for a Mission
+GET http://127.0.0.1:8000/api/v1/integrity-events?mission_id=INTEGRITY-DEMO-001&limit=100
+
+### v0.4.0 - List open alerts
+GET http://127.0.0.1:8000/api/v1/alerts?status=OPEN&limit=100
+
+### v0.4.0 - Mission integrity summary
+GET http://127.0.0.1:8000/api/v1/missions/INTEGRITY-DEMO-001/integrity-summary
+
+### v0.4.0 - Acknowledge an alert
+POST http://127.0.0.1:8000/api/v1/alerts/ALERT-ID/acknowledge
+Content-Type: application/json
+
+{
+  "actor": "operator-name",
+  "note": "Investigating the data interruption."
+}
+
+### v0.4.0 - Resolve an alert
+POST http://127.0.0.1:8000/api/v1/alerts/ALERT-ID/resolve
+Content-Type: application/json
+
+{
+  "actor": "operator-name",
+  "note": "Fault reviewed and closed."
+}
+
+### v0.4.1 - Sensor integrity metrics for one Mission
+GET http://127.0.0.1:8000/api/v1/sensors/OMIP-SIM-001-GNSS/integrity-metrics?mission_id=MISSION-DEMO-001
+
+### v0.4.1 - Mission integrity metrics
+GET http://127.0.0.1:8000/api/v1/missions/MISSION-DEMO-001/integrity-metrics
+
+### v0.4.1 - Timing Integrity Events
+GET http://127.0.0.1:8000/api/v1/integrity-events?mission_id=MISSION-DEMO-001&check_type=HIGH_LATENCY
+
+### v0.4.1 - Automatically resolved alerts
+GET http://127.0.0.1:8000/api/v1/alerts?mission_id=MISSION-DEMO-001&status=RESOLVED
+
+### v0.4.2 - Overall system health
+GET http://127.0.0.1:8000/api/v1/system/health
+
+### v0.4.2 - Runtime counters and rates
+GET http://127.0.0.1:8000/api/v1/system/metrics
+
+### v0.4.2 - SQLite health and row counts
+GET http://127.0.0.1:8000/api/v1/system/database
+
+### v0.4.2 - Latest application logs
+GET http://127.0.0.1:8000/api/v1/system/logs?limit=100
+
+### v0.4.2 - MQTT warning/error logs
+GET http://127.0.0.1:8000/api/v1/system/logs?component=MQTT&level=WARNING&limit=100
+
+### v0.4.2 - Historical system metric snapshots
+GET http://127.0.0.1:8000/api/v1/system/metrics/snapshots?limit=200
+
+### v0.4.2 - Open platform alerts
+GET http://127.0.0.1:8000/api/v1/system/platform-alerts?status=OPEN
+
+### v0.4.2 - Acknowledge a platform alert
+POST http://127.0.0.1:8000/api/v1/system/platform-alerts/PLATFORM-ALERT-ID/acknowledge
+Content-Type: application/json
+
+{
+  "actor": "operator",
+  "note": "Investigating the platform condition."
+}
+
+### v0.4.2 - Resolve a platform alert
+POST http://127.0.0.1:8000/api/v1/system/platform-alerts/PLATFORM-ALERT-ID/resolve
+Content-Type: application/json
+
+{
+  "actor": "operator",
+  "note": "The platform component has recovered."
+}
+
+
+### v0.4.3 - Storage summary
+GET http://127.0.0.1:8000/api/v1/storage/summary
+
+### v0.4.3 - Paginated Mission telemetry
+GET http://127.0.0.1:8000/api/v1/missions/MISSION-001/telemetry/page?page=1&page_size=500&sort_order=asc
+
+### v0.4.3 - Retention policy
+GET http://127.0.0.1:8000/api/v1/storage/retention-policy
+
+### v0.4.3 - Update retention policy
+PUT http://127.0.0.1:8000/api/v1/storage/retention-policy
+Content-Type: application/json
+
+{
+  "raw_messages_days": 45,
+  "telemetry_days": 365
+}
+
+### v0.4.3 - Cleanup preview (read-only)
+GET http://127.0.0.1:8000/api/v1/storage/cleanup/preview
+
+### v0.4.3 - Create background export job
+POST http://127.0.0.1:8000/api/v1/export-jobs
+Content-Type: application/json
+
+{
+  "mission_id": "MISSION-001",
+  "export_format": "package"
+}
+
+### v0.4.3 - List export jobs
+GET http://127.0.0.1:8000/api/v1/export-jobs?limit=50
+
+### v0.4.3 - Mission delete preview
+GET http://127.0.0.1:8000/api/v1/missions/MISSION-001/delete-preview
+
+### v0.4.3 - Create SQLite backup
+POST http://127.0.0.1:8000/api/v1/storage/backups
+Content-Type: application/json
+
+{
+  "label": "before-cleanup"
+}
+
+### v0.4.3 - SQLite integrity check
+GET http://127.0.0.1:8000/api/v1/storage/integrity-check
+
+### v0.4.3 - WAL checkpoint
+POST http://127.0.0.1:8000/api/v1/storage/maintenance/checkpoint
+
+### v0.5.0 - Vehicle type catalogue
+GET http://127.0.0.1:8000/api/v1/vehicle-types
+
+### v0.5.0 - Built-in AUV profiles
+GET http://127.0.0.1:8000/api/v1/vehicle-profiles?vehicle_type=AUV&enabled_only=true
+
+### v0.5.0 - Create a Simulation Run without launching a process
+POST http://127.0.0.1:8000/api/v1/simulation-runs
+Content-Type: application/json
+
+{
+  "vehicle_id": "OMIP-AUV-001",
+  "vehicle_type": "AUV",
+  "vehicle_profile_id": "auv-research-thruster-v1",
+  "scenario_id": "multi_sensor_nominal",
+  "duration_s": 120,
+  "transport": "http",
+  "random_seed": 42,
+  "parameter_overrides": {
+    "kinematics": {
+      "maximum_speed_mps": 1.8
+    }
+  },
+  "launch_process": false
+}
+
+### v0.5.0 - Start a real local simulator worker
+POST http://127.0.0.1:8000/api/v1/simulation-runs
+Content-Type: application/json
+
+{
+  "vehicle_id": "OMIP-UAV-001",
+  "vehicle_type": "UAV",
+  "vehicle_profile_id": "uav-quadrotor-research-v1",
+  "scenario_id": "multi_sensor_nominal",
+  "duration_s": 60,
+  "transport": "http",
+  "random_seed": 42,
+  "parameter_overrides": {},
+  "launch_process": true
+}
+
+### v0.5.0 - List Simulation Runs
+GET http://127.0.0.1:8000/api/v1/simulation-runs
+
+### v0.5.0 - Stop a Simulation Run
+POST http://127.0.0.1:8000/api/v1/simulation-runs/REPLACE-RUN-ID/stop
+Content-Type: application/json
+
+{
+  "reason": "Stopped during operator test"
+}
+
+### v0.5.1 - List Scenario templates
+GET http://127.0.0.1:8000/api/v1/scenarios
+
+### v0.5.1 - Get the AUV environment example
+GET http://127.0.0.1:8000/api/v1/scenarios/auv_current_depth
+
+### v0.5.1 - Create a Scenario
+POST http://127.0.0.1:8000/api/v1/scenarios
+Content-Type: application/json
+
+{
+  "scenario_id": "environment-api-demo",
+  "name": "Environment API demo",
+  "description": "Scenario created through the v0.5.1 API.",
+  "coordinate_frame": "LOCAL_ENU",
+  "default_duration_s": 60,
+  "sensor_rates_hz": {
+    "GNSS": 5,
+    "IMU": 20,
+    "BATTERY": 1,
+    "VEHICLE_STATUS": 2
+  },
+  "motion": {
+    "forward_speed_mps": 1.5
+  },
+  "obstacles": [],
+  "constraints": [],
+  "external_fields": []
+}
+
+### v0.5.1 - Add an AUV obstacle
+POST http://127.0.0.1:8000/api/v1/scenarios/environment-api-demo/obstacles
+Content-Type: application/json
+
+{
+  "name": "Subsea structure",
+  "obstacle_type": "UNDERWATER_STRUCTURE",
+  "geometry": {
+    "geometry_type": "SPHERE",
+    "position": {"x_m": 25, "y_m": 3, "z_m": -18},
+    "radius_m": 3
+  },
+  "applies_to_vehicle_types": ["AUV"]
+}
+
+### v0.5.1 - Add a maximum-depth constraint
+POST http://127.0.0.1:8000/api/v1/scenarios/environment-api-demo/constraints
+Content-Type: application/json
+
+{
+  "name": "Maximum mission depth",
+  "constraint_type": "MAXIMUM_DEPTH",
+  "value": 35,
+  "unit": "m",
+  "severity": "MANDATORY",
+  "applies_to_vehicle_types": ["AUV"],
+  "required_capabilities": ["supports_depth_control"]
+}
+
+### v0.5.1 - Add an ocean current
+POST http://127.0.0.1:8000/api/v1/scenarios/environment-api-demo/external-fields
+Content-Type: application/json
+
+{
+  "name": "Cross current",
+  "field_type": "OCEAN_CURRENT",
+  "coordinate_frame": "LOCAL_ENU",
+  "vector": {"x": 0.15, "y": 0.25, "z": 0, "unit": "m/s"},
+  "unit": "m/s",
+  "applies_to_vehicle_types": ["AUV", "USV"]
+}
+
+### v0.5.1 - Start a run that stores an environment snapshot
+POST http://127.0.0.1:8000/api/v1/simulation-runs
+Content-Type: application/json
+
+{
+  "vehicle_id": "OMIP-AUV-ENV-001",
+  "vehicle_type": "AUV",
+  "vehicle_profile_id": "auv-research-thruster-v1",
+  "scenario_id": "auv_current_depth",
+  "duration_s": 120,
+  "transport": "http",
+  "random_seed": 42,
+  "parameter_overrides": {},
+  "launch_process": true
+}
+
+### v0.5.1 - Read a Mission Environment Snapshot
+GET http://127.0.0.1:8000/api/v1/missions/MISSION-ID/environment
+
+### v0.5.2 - Start UGV obstacle-avoidance simulation
+POST http://127.0.0.1:8000/api/v1/simulation-runs
+Content-Type: application/json
+
+{
+  "vehicle_id": "OMIP-UGV-052",
+  "vehicle_type": "GROUND_VEHICLE",
+  "vehicle_profile_id": "ugv-small-ackermann-v1",
+  "scenario_id": "ugv_active_avoidance",
+  "duration_s": 45,
+  "transport": "http",
+  "random_seed": 42,
+  "parameter_overrides": {},
+  "launch_process": true
+}
+
+### v0.5.2 - Read Mission obstacle interactions
+GET http://127.0.0.1:8000/api/v1/missions/MISSION-ID/obstacle-interactions?limit=500
+
+### v0.5.2 - Filter warning interactions
+GET http://127.0.0.1:8000/api/v1/missions/MISSION-ID/obstacle-interactions?risk_level=WARNING&limit=500
+
+### v0.5.2 - Mission obstacle summary
+GET http://127.0.0.1:8000/api/v1/missions/MISSION-ID/obstacle-summary
+
+### v0.5.2 - Latest vehicle obstacle status
+GET http://127.0.0.1:8000/api/v1/vehicles/OMIP-UGV-052/obstacle-status

@@ -1,45 +1,82 @@
+name: omip
+
 services:
-  mosquitto:
-    image: eclipse-mosquitto:2
+  mqtt:
+    image: eclipse-mosquitto:2.0
+    container_name: omip-mqtt
+    restart: unless-stopped
     ports:
-      - "1883:1883"
+      - "${OMIP_BIND_ADDRESS:-127.0.0.1}:${OMIP_MQTT_PORT:-1883}:1883"
     volumes:
-      - ./docker/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./docker/mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - omip_mqtt_data:/mosquitto/data
+      - omip_mqtt_logs:/mosquitto/log
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          mosquitto_sub -h 127.0.0.1 -p 1883
+          -t '$$SYS/broker/version' -C 1 -W 3 >/dev/null 2>&1
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - omip-network
 
   backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
+    image: omip/backend:${OMIP_IMAGE_TAG:-local}
+    container_name: omip-backend
+    restart: unless-stopped
+    init: true
     environment:
-      OMIP_DATABASE_PATH: /data/omip_v052.db
+      OMIP_DATABASE_PATH: /data/database/omip.db
       OMIP_STORAGE_DIR: /data/storage
       OMIP_EXPORT_DIR: /data/storage/exports
       OMIP_BACKUP_DIR: /data/storage/backups
       OMIP_MQTT_ENABLED: "true"
-      OMIP_MQTT_HOST: mosquitto
+      OMIP_MQTT_HOST: mqtt
       OMIP_MQTT_PORT: "1883"
       OMIP_PUBLIC_API_BASE: http://backend:8000
+      OMIP_ONLINE_THRESHOLD_S: "${OMIP_ONLINE_THRESHOLD_S:-5}"
+      OMIP_DEGRADED_THRESHOLD_S: "${OMIP_DEGRADED_THRESHOLD_S:-15}"
     ports:
-      - "8000:8000"
+      - "${OMIP_BIND_ADDRESS:-127.0.0.1}:${OMIP_HTTP_PORT:-8000}:8000"
     volumes:
-      - omip_data:/data
+      - omip_database:/data/database
+      - omip_exports:/data/storage/exports
+      - omip_backups:/data/storage/backups
+      - omip_runtime:/data/storage/simulation-scenarios
     depends_on:
-      - mosquitto
+      mqtt:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health')"]
-      interval: 3s
-      timeout: 2s
-      retries: 20
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=3)
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    networks:
+      - omip-network
 
-  simulator:
+  demo-simulator:
+    profiles: ["demo"]
     build:
       context: .
-      dockerfile: docker/simulator.Dockerfile
-    depends_on:
-      backend:
-        condition: service_healthy
-      mosquitto:
-        condition: service_started
+      dockerfile: docker/simulator/Dockerfile
+    image: omip/simulator:${OMIP_IMAGE_TAG:-local}
+    container_name: omip-demo-simulator
+    restart: "no"
+    init: true
     command:
       - python
       - simulator/multi_sensor_simulator.py
@@ -48,15 +85,43 @@ services:
       - --transport
       - mqtt
       - --mqtt-host
-      - mosquitto
+      - mqtt
+      - --mqtt-port
+      - "1883"
+      - --vehicle-id
+      - ${OMIP_DEMO_VEHICLE_ID:-OMIP-DEMO-UGV-001}
       - --vehicle-type
-      - GROUND_VEHICLE
+      - ${OMIP_DEMO_VEHICLE_TYPE:-GROUND_VEHICLE}
       - --vehicle-profile
-      - ugv-small-ackermann-v1
+      - ${OMIP_DEMO_VEHICLE_PROFILE:-ugv-small-ackermann-v1}
       - --scenario
-      - scenarios/multi_sensor_nominal.json
+      - ${OMIP_DEMO_SCENARIO:-scenarios/ugv_active_avoidance.json}
+      - --random-seed
+      - ${OMIP_DEMO_RANDOM_SEED:-42}
       - --duration
-      - "60"
+      - ${OMIP_DEMO_DURATION_S:-60}
+    depends_on:
+      backend:
+        condition: service_healthy
+      mqtt:
+        condition: service_healthy
+    networks:
+      - omip-network
+
+networks:
+  omip-network:
+    name: omip-network
 
 volumes:
-  omip_data:
+  omip_database:
+    name: omip-database
+  omip_exports:
+    name: omip-exports
+  omip_backups:
+    name: omip-backups
+  omip_runtime:
+    name: omip-runtime
+  omip_mqtt_data:
+    name: omip-mqtt-data
+  omip_mqtt_logs:
+    name: omip-mqtt-logs
