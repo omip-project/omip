@@ -1,21 +1,19 @@
-# Frequently asked questions
+# FAQ
 
-## Is OMIP a vehicle controller?
+## Which port does OMIP use?
 
-No. OMIP is primarily mission-data infrastructure, simulation, monitoring, and
-analytics software.
+Default: 8000
 
-## Does OMIP replace ROS 2, Autoware, PX4, or ArduPilot?
+## Can I change the port?
 
-No. OMIP is intended to complement control and robotics frameworks by providing
-a common mission-data and analysis layer.
+Yes, via `.env`.
 
-## Which vehicle types are supported?
+## Does OMIP require Docker?
 
-The current model supports ground vehicles, aerial vehicles, underwater
-vehicles, and surface vessels.
+Docker is the recommended development environment.
 
-## Is the obstacle-avoidance logic safe for a real vehicle?
+## How do I stop OMIP?
 
-No. Current avoidance and safety functions are simulation and research tools,
-not certified real-vehicle safety controllers.
+```bash
+docker compose down
+```
