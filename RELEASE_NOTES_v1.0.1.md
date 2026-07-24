@@ -1,3 +1,14 @@
+## Foundation v1.0.1 Patch
+
+This patch changes the default Docker host port from `8000` to `18080` to
+improve compatibility with Windows, WSL and Hyper-V reserved port ranges.
+
+### Fixed
+
+- Default Docker host port changed to `18080`
+- Quick Start updated
+- Troubleshooting guidance updated
+
 # RELEASE_NOTES_v1.0.md
 
 # OMIP Foundation v1.0 Release Notes
