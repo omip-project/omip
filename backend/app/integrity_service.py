@@ -5,22 +5,15 @@ from datetime import datetime, timezone
 from math import floor
 from typing import Any
 
-from .config import (
-    INTEGRITY_CLOCK_DRIFT_MS,
-    INTEGRITY_CRITICAL_LATENCY_MS,
-    INTEGRITY_CRITICAL_LOW_RATE_RATIO,
-    INTEGRITY_FUTURE_CRITICAL_MS,
-    INTEGRITY_FUTURE_WARNING_MS,
-    INTEGRITY_HIGH_RATE_RATIO,
-    INTEGRITY_LOW_RATE_RATIO,
-    INTEGRITY_RATE_MIN_SPAN_S,
-    INTEGRITY_RATE_WINDOW_S,
-    INTEGRITY_REALTIME_MAX_SKEW_S,
-    INTEGRITY_WARNING_LATENCY_MS,
-)
+from .config import (INTEGRITY_CLOCK_DRIFT_MS, INTEGRITY_CRITICAL_LATENCY_MS,
+                     INTEGRITY_CRITICAL_LOW_RATE_RATIO,
+                     INTEGRITY_FUTURE_CRITICAL_MS, INTEGRITY_FUTURE_WARNING_MS,
+                     INTEGRITY_HIGH_RATE_RATIO, INTEGRITY_LOW_RATE_RATIO,
+                     INTEGRITY_RATE_MIN_SPAN_S, INTEGRITY_RATE_WINDOW_S,
+                     INTEGRITY_REALTIME_MAX_SKEW_S,
+                     INTEGRITY_WARNING_LATENCY_MS)
 from .database import OmipRepository
 from .schemas import IntegrityFinding, RawSensorMessage, TelemetryFrame
-
 
 RECOVERABLE_CHECK_TYPES = {
     "LOW_SAMPLING_RATE",
@@ -72,7 +65,8 @@ class DataIntegrityService:
             state=state,
         )
         duplicate_id = any(
-            finding.details.get("duplicate_kind") == "MESSAGE_ID" for finding in findings
+            finding.details.get("duplicate_kind") == "MESSAGE_ID"
+            for finding in findings
         )
         result = IntegrityAnalysis(findings=findings)
         if duplicate_id:
@@ -131,7 +125,8 @@ class DataIntegrityService:
             state=state,
         )
         duplicate_id = any(
-            finding.details.get("duplicate_kind") == "MESSAGE_ID" for finding in findings
+            finding.details.get("duplicate_kind") == "MESSAGE_ID"
+            for finding in findings
         )
         result = IntegrityAnalysis(findings=findings)
         if duplicate_id:
@@ -343,7 +338,9 @@ class DataIntegrityService:
             if latest_timestamp.tzinfo is None:
                 latest_timestamp = latest_timestamp.replace(tzinfo=timezone.utc)
             if timestamp_utc < latest_timestamp:
-                regression_ms = (latest_timestamp - timestamp_utc).total_seconds() * 1000.0
+                regression_ms = (
+                    latest_timestamp - timestamp_utc
+                ).total_seconds() * 1000.0
                 findings.append(
                     IntegrityFinding(
                         dedup_key=f"TIMESTAMP_REGRESSION:{key_prefix}:{message_id}",
@@ -373,14 +370,18 @@ class DataIntegrityService:
         # Historical imports/backfills are not treated as live communication
         # latency. This avoids meaningless multi-hour latency alerts when old
         # datasets are uploaded through HTTP.
-        realtime_eligible = abs(signed_latency_ms) <= INTEGRITY_REALTIME_MAX_SKEW_S * 1000.0
+        realtime_eligible = (
+            abs(signed_latency_ms) <= INTEGRITY_REALTIME_MAX_SKEW_S * 1000.0
+        )
         if not realtime_eligible:
             return findings, evaluated
 
         evaluated.add("FUTURE_TIMESTAMP")
         if signed_latency_ms <= -INTEGRITY_FUTURE_WARNING_MS:
             future_ms = abs(signed_latency_ms)
-            severity = "CRITICAL" if future_ms >= INTEGRITY_FUTURE_CRITICAL_MS else "WARNING"
+            severity = (
+                "CRITICAL" if future_ms >= INTEGRITY_FUTURE_CRITICAL_MS else "WARNING"
+            )
             findings.append(
                 IntegrityFinding(
                     dedup_key=f"FUTURE_TIMESTAMP:{key_prefix}:{message_id}",
@@ -454,7 +455,9 @@ class DataIntegrityService:
                                 f"Observed clock/latency offset changed by {drift_ms:.1f} ms on {stream_id}."
                             ),
                             details={
-                                "previous_latency_ms": round(float(previous_latency), 3),
+                                "previous_latency_ms": round(
+                                    float(previous_latency), 3
+                                ),
                                 "current_latency_ms": round(signed_latency_ms, 3),
                                 "drift_ms": round(drift_ms, 3),
                                 "threshold_ms": INTEGRITY_CLOCK_DRIFT_MS,
@@ -510,7 +513,9 @@ class DataIntegrityService:
         bucket = floor(now.timestamp() / max(INTEGRITY_RATE_WINDOW_S, 1.0))
 
         if ratio < INTEGRITY_LOW_RATE_RATIO:
-            severity = "CRITICAL" if ratio < INTEGRITY_CRITICAL_LOW_RATE_RATIO else "WARNING"
+            severity = (
+                "CRITICAL" if ratio < INTEGRITY_CRITICAL_LOW_RATE_RATIO else "WARNING"
+            )
             return [
                 IntegrityFinding(
                     dedup_key=f"LOW_SAMPLING_RATE:{key_prefix}:{bucket}",

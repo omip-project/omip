@@ -33,7 +33,9 @@ class RuntimeMetricsService:
             except Exception:
                 self._process = None
 
-    def increment(self, name: str, amount: int = 1, *, rate_event: bool = False) -> None:
+    def increment(
+        self, name: str, amount: int = 1, *, rate_event: bool = False
+    ) -> None:
         now = time.monotonic()
         with self._lock:
             self._counters[name] += int(amount)
@@ -182,13 +184,22 @@ class SystemHealthService:
                 size_bytes=database.get("database_size_bytes"),
             ),
             "mqtt": self._component(
-                "HEALTHY" if mqtt.get("connected") else ("DEGRADED" if mqtt.get("enabled") else "UNKNOWN"),
+                (
+                    "HEALTHY"
+                    if mqtt.get("connected")
+                    else ("DEGRADED" if mqtt.get("enabled") else "UNKNOWN")
+                ),
                 (
                     f"Connected to {mqtt.get('host')}:{mqtt.get('port')}"
                     if mqtt.get("connected")
-                    else (mqtt.get("last_error") or "MQTT bridge is enabled but not connected")
-                    if mqtt.get("enabled")
-                    else "MQTT bridge is disabled"
+                    else (
+                        (
+                            mqtt.get("last_error")
+                            or "MQTT bridge is enabled but not connected"
+                        )
+                        if mqtt.get("enabled")
+                        else "MQTT bridge is disabled"
+                    )
                 ),
                 enabled=bool(mqtt.get("enabled")),
                 connected=bool(mqtt.get("connected")),
@@ -200,7 +211,11 @@ class SystemHealthService:
                 stream_clients=self.stream_connections.count,
             ),
             "ingestion": self._component(
-                "DEGRADED" if rejection_ratio >= self.rejection_warning_ratio else "HEALTHY",
+                (
+                    "DEGRADED"
+                    if rejection_ratio >= self.rejection_warning_ratio
+                    else "HEALTHY"
+                ),
                 (
                     f"Rejected message ratio is {rejection_ratio:.1%}"
                     if rejection_ratio >= self.rejection_warning_ratio
@@ -209,11 +224,19 @@ class SystemHealthService:
                 accepted=accepted,
                 rejected=rejected,
                 rejection_ratio=round(rejection_ratio, 4),
-                raw_rate_per_second=runtime["rates"]["raw_messages_received"]["one_minute_per_second"],
-                telemetry_rate_per_second=runtime["rates"]["telemetry_frames_received"]["one_minute_per_second"],
+                raw_rate_per_second=runtime["rates"]["raw_messages_received"][
+                    "one_minute_per_second"
+                ],
+                telemetry_rate_per_second=runtime["rates"]["telemetry_frames_received"][
+                    "one_minute_per_second"
+                ],
             ),
             "integrity_engine": self._component(
-                "UNHEALTHY" if counters.get("integrity_engine_failures", 0) else "HEALTHY",
+                (
+                    "UNHEALTHY"
+                    if counters.get("integrity_engine_failures", 0)
+                    else "HEALTHY"
+                ),
                 (
                     "Integrity engine failures have been recorded"
                     if counters.get("integrity_engine_failures", 0)
@@ -222,7 +245,11 @@ class SystemHealthService:
                 failures=int(counters.get("integrity_engine_failures", 0)),
             ),
             "process": self._component(
-                "DEGRADED" if memory_mb is not None and memory_mb >= self.memory_warning_mb else "HEALTHY",
+                (
+                    "DEGRADED"
+                    if memory_mb is not None and memory_mb >= self.memory_warning_mb
+                    else "HEALTHY"
+                ),
                 (
                     f"Process memory is {memory_mb:.1f} MB"
                     if memory_mb is not None
@@ -234,7 +261,9 @@ class SystemHealthService:
         }
 
         effective_statuses = [
-            component["status"] for component in components.values() if component["status"] != "UNKNOWN"
+            component["status"]
+            for component in components.values()
+            if component["status"] != "UNKNOWN"
         ]
         if "UNHEALTHY" in effective_statuses:
             overall = "UNHEALTHY"
@@ -245,8 +274,12 @@ class SystemHealthService:
 
         vehicles = self.repository.list_vehicles()
         sensors = self.repository.list_sensors()
-        open_data_alerts = len(self.repository.list_alerts(status="OPEN", limit=100_000))
-        open_platform_alerts = len(self.repository.list_platform_alerts(status="OPEN", limit=100_000))
+        open_data_alerts = len(
+            self.repository.list_alerts(status="OPEN", limit=100_000)
+        )
+        open_platform_alerts = len(
+            self.repository.list_platform_alerts(status="OPEN", limit=100_000)
+        )
 
         return {
             "overall_status": overall,
@@ -255,15 +288,22 @@ class SystemHealthService:
             "components": components,
             "operations": {
                 "active_vehicles": sum(
-                    1 for vehicle in vehicles
-                    if vehicle.get("connection_status") == "ONLINE" and vehicle.get("active_mission_id")
+                    1
+                    for vehicle in vehicles
+                    if vehicle.get("connection_status") == "ONLINE"
+                    and vehicle.get("active_mission_id")
                 ),
-                "online_sensors": sum(1 for sensor in sensors if sensor.get("connection_status") == "ONLINE"),
+                "online_sensors": sum(
+                    1
+                    for sensor in sensors
+                    if sensor.get("connection_status") == "ONLINE"
+                ),
                 "registered_vehicles": len(vehicles),
                 "registered_sensors": len(sensors),
                 "open_data_alerts": open_data_alerts,
                 "open_platform_alerts": open_platform_alerts,
-                "websocket_clients": self.telemetry_connections.count + self.stream_connections.count,
+                "websocket_clients": self.telemetry_connections.count
+                + self.stream_connections.count,
             },
             "runtime": runtime,
             "database": database,

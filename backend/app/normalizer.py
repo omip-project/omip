@@ -6,16 +6,8 @@ from dataclasses import dataclass, field
 from typing import Any
 from uuid import uuid4
 
-from .schemas import (
-    Acceleration,
-    DataQuality,
-    Orientation,
-    Position,
-    RawSensorMessage,
-    TelemetryFrame,
-    VehicleState,
-    Velocity,
-)
+from .schemas import (Acceleration, DataQuality, Orientation, Position,
+                      RawSensorMessage, TelemetryFrame, VehicleState, Velocity)
 
 
 @dataclass
@@ -69,27 +61,45 @@ class RawMessageNormalizer:
                     % 360.0,
                     "pitch_deg": max(
                         -90.0,
-                        min(90.0, self._number(payload, "pitch_deg", state.orientation["pitch_deg"])),
+                        min(
+                            90.0,
+                            self._number(
+                                payload, "pitch_deg", state.orientation["pitch_deg"]
+                            ),
+                        ),
                     ),
                     "roll_deg": max(
                         -180.0,
-                        min(180.0, self._number(payload, "roll_deg", state.orientation["roll_deg"])),
+                        min(
+                            180.0,
+                            self._number(
+                                payload, "roll_deg", state.orientation["roll_deg"]
+                            ),
+                        ),
                     ),
                 }
                 return None
 
             if message.message_type == "BATTERY":
                 state.battery_percent = max(
-                    0.0, min(100.0, self._number(payload, "battery_percent", state.battery_percent))
+                    0.0,
+                    min(
+                        100.0,
+                        self._number(payload, "battery_percent", state.battery_percent),
+                    ),
                 )
                 return None
 
             if message.message_type == "VEHICLE_STATUS":
-                state.operating_mode = str(payload.get("operating_mode", state.operating_mode))
+                state.operating_mode = str(
+                    payload.get("operating_mode", state.operating_mode)
+                )
                 state.autonomy_enabled = bool(
                     payload.get("autonomy_enabled", state.autonomy_enabled)
                 )
-                state.emergency_stop = bool(payload.get("emergency_stop", state.emergency_stop))
+                state.emergency_stop = bool(
+                    payload.get("emergency_stop", state.emergency_stop)
+                )
                 return None
 
             if message.message_type not in {"GNSS", "ODOMETRY"}:
@@ -98,7 +108,9 @@ class RawMessageNormalizer:
             vx = self._number(payload, "vx_mps")
             vy = self._number(payload, "vy_mps")
             vz = self._number(payload, "vz_mps")
-            speed = self._number(payload, "speed_mps", math.sqrt(vx * vx + vy * vy + vz * vz))
+            speed = self._number(
+                payload, "speed_mps", math.sqrt(vx * vx + vy * vy + vz * vz)
+            )
             if "heading_deg" in payload:
                 heading = self._number(payload, "heading_deg") % 360.0
             elif abs(vx) + abs(vy) > 1e-12:

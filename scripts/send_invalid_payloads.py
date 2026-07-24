@@ -8,7 +8,9 @@ from uuid import uuid4
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Send deliberately invalid OMIP payloads.")
+    parser = argparse.ArgumentParser(
+        description="Send deliberately invalid OMIP payloads."
+    )
     parser.add_argument("--api-base", default="http://127.0.0.1:8000")
     parser.add_argument("--count", type=int, default=20)
     args = parser.parse_args()

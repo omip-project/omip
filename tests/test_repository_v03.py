@@ -5,16 +5,10 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
-
 from app.database import OmipRepository
 from app.normalizer import RawMessageNormalizer
-from app.schemas import (
-    MissionCreate,
-    MissionEventCreate,
-    RawSensorMessage,
-    SensorCreate,
-    VehicleCreate,
-)
+from app.schemas import (MissionCreate, MissionEventCreate, RawSensorMessage,
+                         SensorCreate, VehicleCreate)
 
 
 def make_raw(
@@ -108,7 +102,9 @@ def test_normalizer_combines_imu_battery_and_status(tmp_path: Path) -> None:
     assert telemetry.orientation.heading_deg == pytest.approx(26.565051, rel=1e-5)
 
 
-def test_quality_summary_detects_missing_and_out_of_order_frames(tmp_path: Path) -> None:
+def test_quality_summary_detects_missing_and_out_of_order_frames(
+    tmp_path: Path,
+) -> None:
     repo = configured_repository(tmp_path / "omip.db")
     normalizer = RawMessageNormalizer()
     for sequence in [0, 1, 4, 3]:
@@ -144,7 +140,9 @@ def test_event_crud(tmp_path: Path) -> None:
     assert repo.get_event("EVENT-1") is None
 
 
-def test_heartbeat_keeps_vehicle_online_while_sensor_can_be_offline(tmp_path: Path) -> None:
+def test_heartbeat_keeps_vehicle_online_while_sensor_can_be_offline(
+    tmp_path: Path,
+) -> None:
     from app.schemas import VehicleHeartbeat
 
     repo = configured_repository(tmp_path / "omip.db")
@@ -181,7 +179,9 @@ def test_heartbeat_keeps_vehicle_online_while_sensor_can_be_offline(tmp_path: Pa
     assert sensor["connection_status"] == "OFFLINE"
 
 
-def test_completed_mission_changes_vehicle_and_sensor_to_inactive(tmp_path: Path) -> None:
+def test_completed_mission_changes_vehicle_and_sensor_to_inactive(
+    tmp_path: Path,
+) -> None:
     from app.schemas import VehicleHeartbeat
 
     repo = configured_repository(tmp_path / "omip.db")

@@ -2,14 +2,21 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi.testclient import TestClient
-
 from app import main
 from app.mqtt_bridge import MqttRuntimeManager
+from fastapi.testclient import TestClient
 
 
 class FakeBridge:
-    def __init__(self, host: str, port: int, raw_topic: str, telemetry_topic: str, heartbeat_topic: str, handler: Any) -> None:
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        raw_topic: str,
+        telemetry_topic: str,
+        heartbeat_topic: str,
+        handler: Any,
+    ) -> None:
         self.host = host
         self.port = port
         self.raw_topic = raw_topic

@@ -62,7 +62,9 @@ class SimulationRunManager:
     ) -> dict[str, Any]:
         run_id = self.generated_run_id()
         mission_id = request.mission_id or self.generated_mission_id(request.vehicle_id)
-        scenario_path = scenario_path_override or self.scenario_path(request.scenario_id)
+        scenario_path = scenario_path_override or self.scenario_path(
+            request.scenario_id
+        )
         if not scenario_path.exists():
             raise FileNotFoundError(f"Scenario not found: {request.scenario_id}")
         record = self.repository.create_simulation_run_record(
@@ -82,20 +84,36 @@ class SimulationRunManager:
         command = [
             sys.executable,
             str(self.project_dir / "simulator" / "multi_sensor_simulator.py"),
-            "--api-base", self.api_base,
-            "--vehicle-id", request.vehicle_id,
-            "--vehicle-type", request.vehicle_type,
-            "--vehicle-profile", request.vehicle_profile_id,
-            "--scenario", str(scenario_path),
-            "--mission-id", mission_id,
-            "--duration", str(request.duration_s),
-            "--transport", request.transport,
-            "--random-seed", str(request.random_seed),
-            "--simulation-run-id", run_id,
+            "--api-base",
+            self.api_base,
+            "--vehicle-id",
+            request.vehicle_id,
+            "--vehicle-type",
+            request.vehicle_type,
+            "--vehicle-profile",
+            request.vehicle_profile_id,
+            "--scenario",
+            str(scenario_path),
+            "--mission-id",
+            mission_id,
+            "--duration",
+            str(request.duration_s),
+            "--transport",
+            request.transport,
+            "--random-seed",
+            str(request.random_seed),
+            "--simulation-run-id",
+            run_id,
         ]
         if request.parameter_overrides:
             import json
-            command.extend(["--parameter-overrides", json.dumps(request.parameter_overrides, separators=(",", ":"))])
+
+            command.extend(
+                [
+                    "--parameter-overrides",
+                    json.dumps(request.parameter_overrides, separators=(",", ":")),
+                ]
+            )
         return command
 
     def _launch(
@@ -178,7 +196,9 @@ class SimulationRunManager:
             run_id,
             status=final_status,
             exit_code=exit_code,
-            error_message=None if exit_code == 0 else f"Simulator exited with code {exit_code}",
+            error_message=(
+                None if exit_code == 0 else f"Simulator exited with code {exit_code}"
+            ),
             mark_ended=True,
         )
         with self._lock:
@@ -187,7 +207,9 @@ class SimulationRunManager:
         if handle is not None:
             handle.close()
 
-    def stop(self, run_id: str, reason: str = "Stopped by operator") -> dict[str, Any] | None:
+    def stop(
+        self, run_id: str, reason: str = "Stopped by operator"
+    ) -> dict[str, Any] | None:
         record = self.repository.get_simulation_run(run_id)
         if record is None:
             return None

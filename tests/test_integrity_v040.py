@@ -4,18 +4,20 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi.testclient import TestClient
-
 from app import main
 from app.database import OmipRepository
 from app.integrity_service import DataIntegrityService
 from app.normalizer import RawMessageNormalizer
-from app.schemas import MissionCreate, RawSensorMessage, SensorCreate, VehicleCreate
+from app.schemas import (MissionCreate, RawSensorMessage, SensorCreate,
+                         VehicleCreate)
+from fastapi.testclient import TestClient
 
 
 def _configured_repository(path: Path) -> OmipRepository:
     repo = OmipRepository(path)
-    repo.create_vehicle(VehicleCreate(vehicle_id="INT-VEH", vehicle_name="Integrity vehicle"))
+    repo.create_vehicle(
+        VehicleCreate(vehicle_id="INT-VEH", vehicle_name="Integrity vehicle")
+    )
     repo.create_sensor(
         "INT-VEH",
         SensorCreate(
@@ -26,13 +28,17 @@ def _configured_repository(path: Path) -> OmipRepository:
         ),
     )
     repo.create_mission(
-        MissionCreate(mission_id="INT-MISSION", vehicle_id="INT-VEH", name="Integrity test")
+        MissionCreate(
+            mission_id="INT-MISSION", vehicle_id="INT-VEH", name="Integrity test"
+        )
     )
     repo.transition_mission("INT-MISSION", "RUNNING")
     return repo
 
 
-def _raw(sequence_no: int, *, message_id=None, seconds: float | None = None) -> RawSensorMessage:
+def _raw(
+    sequence_no: int, *, message_id=None, seconds: float | None = None
+) -> RawSensorMessage:
     timestamp = datetime(2026, 7, 19, 1, 0, tzinfo=timezone.utc) + timedelta(
         seconds=float(sequence_no if seconds is None else seconds)
     )
@@ -49,7 +55,9 @@ def _raw(sequence_no: int, *, message_id=None, seconds: float | None = None) -> 
     )
 
 
-def test_integrity_service_detects_gap_duplicate_and_out_of_order(tmp_path: Path) -> None:
+def test_integrity_service_detects_gap_duplicate_and_out_of_order(
+    tmp_path: Path,
+) -> None:
     repo = _configured_repository(tmp_path / "integrity.db")
     service = DataIntegrityService(repo)
 
@@ -79,7 +87,10 @@ def test_integrity_service_detects_gap_duplicate_and_out_of_order(tmp_path: Path
 
     repeated_old_sequence = _raw(2, seconds=5.5)
     findings = service.analyse_raw(repeated_old_sequence)
-    assert {finding.check_type for finding in findings} == {"DUPLICATE_MESSAGE", "OUT_OF_ORDER"}
+    assert {finding.check_type for finding in findings} == {
+        "DUPLICATE_MESSAGE",
+        "OUT_OF_ORDER",
+    }
 
     duplicate_id = _raw(99, message_id=first.message_id, seconds=6)
     findings = service.analyse_raw(duplicate_id)
@@ -97,10 +108,20 @@ def test_integrity_api_creates_and_manages_alerts(tmp_path: Path) -> None:
 
     with TestClient(main.app) as client:
         first = _raw(0)
-        assert client.post("/api/v1/raw-messages", json=first.model_dump(mode="json")).status_code == 201
+        assert (
+            client.post(
+                "/api/v1/raw-messages", json=first.model_dump(mode="json")
+            ).status_code
+            == 201
+        )
 
         gap = _raw(4)
-        assert client.post("/api/v1/raw-messages", json=gap.model_dump(mode="json")).status_code == 201
+        assert (
+            client.post(
+                "/api/v1/raw-messages", json=gap.model_dump(mode="json")
+            ).status_code
+            == 201
+        )
 
         events = client.get(
             "/api/v1/integrity-events",

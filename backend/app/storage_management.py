@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-
 DEFAULT_RETENTION_POLICY: dict[str, int] = {
     "raw_messages_days": 30,
     "telemetry_days": 180,
@@ -27,7 +26,9 @@ class StorageManager:
 
     def __init__(self, repository: Any, export_dir: Path, backup_dir: Path) -> None:
         self.repository = repository
-        self.database_path = Path(repository._database_path)  # repository-owned local SQLite file
+        self.database_path = Path(
+            repository._database_path
+        )  # repository-owned local SQLite file
         self.export_dir = Path(export_dir)
         self.backup_dir = Path(backup_dir)
         self.export_dir.mkdir(parents=True, exist_ok=True)
@@ -59,8 +60,7 @@ class StorageManager:
     def _initialise(self) -> None:
         now = self._utc_now().isoformat()
         with self._connect() as connection:
-            connection.executescript(
-                """
+            connection.executescript("""
                 CREATE TABLE IF NOT EXISTS storage_settings (
                     setting_key TEXT PRIMARY KEY,
                     value_json TEXT NOT NULL,
@@ -103,8 +103,7 @@ class StorageManager:
                     ON export_jobs(mission_id, created_at_utc DESC);
                 CREATE INDEX IF NOT EXISTS idx_storage_backups_created
                     ON storage_backups(created_at_utc DESC);
-                """
-            )
+                """)
             connection.execute(
                 """
                 INSERT OR IGNORE INTO storage_settings(setting_key, value_json, updated_at_utc)
@@ -127,22 +126,36 @@ class StorageManager:
                 name = str(row["name"])
                 if name in excluded or not re.fullmatch(r"[A-Za-z0-9_]+", name):
                     continue
-                count = int(connection.execute(f'SELECT COUNT(*) AS c FROM "{name}"').fetchone()["c"])
+                count = int(
+                    connection.execute(
+                        f'SELECT COUNT(*) AS c FROM "{name}"'
+                    ).fetchone()["c"]
+                )
                 results.append({"table_name": name, "row_count": count})
         return results
 
     def storage_summary(self) -> dict[str, Any]:
-        table_rows = {item["table_name"]: item["row_count"] for item in self.table_statistics()}
-        database_size = self.database_path.stat().st_size if self.database_path.exists() else 0
+        table_rows = {
+            item["table_name"]: item["row_count"] for item in self.table_statistics()
+        }
+        database_size = (
+            self.database_path.stat().st_size if self.database_path.exists() else 0
+        )
         now = self._utc_now()
         since = (now - timedelta(days=1)).isoformat()
         with self._connect() as connection:
-            raw_24h = int(connection.execute(
-                "SELECT COUNT(*) AS c FROM raw_sensor_messages WHERE received_at_utc >= ?", (since,)
-            ).fetchone()["c"])
-            telemetry_24h = int(connection.execute(
-                "SELECT COUNT(*) AS c FROM telemetry WHERE received_at_utc >= ?", (since,)
-            ).fetchone()["c"])
+            raw_24h = int(
+                connection.execute(
+                    "SELECT COUNT(*) AS c FROM raw_sensor_messages WHERE received_at_utc >= ?",
+                    (since,),
+                ).fetchone()["c"]
+            )
+            telemetry_24h = int(
+                connection.execute(
+                    "SELECT COUNT(*) AS c FROM telemetry WHERE received_at_utc >= ?",
+                    (since,),
+                ).fetchone()["c"]
+            )
             time_bounds: dict[str, dict[str, str | None]] = {}
             for table, column in (
                 ("raw_sensor_messages", "received_at_utc"),
@@ -153,9 +166,14 @@ class StorageManager:
                 row = connection.execute(
                     f'SELECT MIN("{column}") AS oldest, MAX("{column}") AS newest FROM "{table}"'
                 ).fetchone()
-                time_bounds[table] = {"oldest_utc": row["oldest"], "newest_utc": row["newest"]}
+                time_bounds[table] = {
+                    "oldest_utc": row["oldest"],
+                    "newest_utc": row["newest"],
+                }
 
-        measured_rows = sum(table_rows.get(name, 0) for name in ("raw_sensor_messages", "telemetry"))
+        measured_rows = sum(
+            table_rows.get(name, 0) for name in ("raw_sensor_messages", "telemetry")
+        )
         new_rows_24h = raw_24h + telemetry_24h
         estimated_daily_growth = 0
         if measured_rows > 0 and database_size > 0:
@@ -180,7 +198,9 @@ class StorageManager:
     # Pagination
     # ------------------------------------------------------------------
     @staticmethod
-    def _page_response(items: list[dict[str, Any]], page: int, page_size: int, total: int) -> dict[str, Any]:
+    def _page_response(
+        items: list[dict[str, Any]], page: int, page_size: int, total: int
+    ) -> dict[str, Any]:
         total_pages = (total + page_size - 1) // page_size if total else 0
         return {
             "items": items,
@@ -211,9 +231,11 @@ class StorageManager:
         direction = "DESC" if sort_order.lower() == "desc" else "ASC"
         offset = (page - 1) * page_size
         with self._connect() as connection:
-            total = int(connection.execute(
-                f"SELECT COUNT(*) AS c FROM telemetry WHERE {where_sql}", params
-            ).fetchone()["c"])
+            total = int(
+                connection.execute(
+                    f"SELECT COUNT(*) AS c FROM telemetry WHERE {where_sql}", params
+                ).fetchone()["c"]
+            )
             rows = connection.execute(
                 f"""
                 SELECT payload_json FROM telemetry WHERE {where_sql}
@@ -222,7 +244,9 @@ class StorageManager:
                 """,
                 (*params, page_size, offset),
             ).fetchall()
-        return self._page_response([json.loads(row["payload_json"]) for row in rows], page, page_size, total)
+        return self._page_response(
+            [json.loads(row["payload_json"]) for row in rows], page, page_size, total
+        )
 
     def mission_raw_page(
         self,
@@ -245,9 +269,12 @@ class StorageManager:
         direction = "DESC" if sort_order.lower() == "desc" else "ASC"
         offset = (page - 1) * page_size
         with self._connect() as connection:
-            total = int(connection.execute(
-                f"SELECT COUNT(*) AS c FROM raw_sensor_messages WHERE {where_sql}", params
-            ).fetchone()["c"])
+            total = int(
+                connection.execute(
+                    f"SELECT COUNT(*) AS c FROM raw_sensor_messages WHERE {where_sql}",
+                    params,
+                ).fetchone()["c"]
+            )
             rows = connection.execute(
                 f"""
                 SELECT payload_json FROM raw_sensor_messages WHERE {where_sql}
@@ -256,9 +283,13 @@ class StorageManager:
                 """,
                 (*params, page_size, offset),
             ).fetchall()
-        return self._page_response([json.loads(row["payload_json"]) for row in rows], page, page_size, total)
+        return self._page_response(
+            [json.loads(row["payload_json"]) for row in rows], page, page_size, total
+        )
 
-    def application_logs_page(self, page: int, page_size: int, level: str | None = None) -> dict[str, Any]:
+    def application_logs_page(
+        self, page: int, page_size: int, level: str | None = None
+    ) -> dict[str, Any]:
         where: list[str] = []
         params: list[Any] = []
         if level:
@@ -267,9 +298,11 @@ class StorageManager:
         where_sql = f"WHERE {' AND '.join(where)}" if where else ""
         offset = (page - 1) * page_size
         with self._connect() as connection:
-            total = int(connection.execute(
-                f"SELECT COUNT(*) AS c FROM application_logs {where_sql}", params
-            ).fetchone()["c"])
+            total = int(
+                connection.execute(
+                    f"SELECT COUNT(*) AS c FROM application_logs {where_sql}", params
+                ).fetchone()["c"]
+            )
             rows = connection.execute(
                 f"""
                 SELECT * FROM application_logs {where_sql}
@@ -293,7 +326,13 @@ class StorageManager:
                 "SELECT value_json FROM storage_settings WHERE setting_key='retention_policy'"
             ).fetchone()
         policy = dict(DEFAULT_RETENTION_POLICY)
-        policy.update({k: int(v) for k, v in self._load_json(row["value_json"] if row else None).items() if k in policy})
+        policy.update(
+            {
+                k: int(v)
+                for k, v in self._load_json(row["value_json"] if row else None).items()
+                if k in policy
+            }
+        )
         return policy
 
     def update_retention_policy(self, updates: dict[str, Any]) -> dict[str, int]:
@@ -313,7 +352,10 @@ class StorageManager:
                     value_json=excluded.value_json,
                     updated_at_utc=excluded.updated_at_utc
                 """,
-                (json.dumps(policy, separators=(",", ":")), self._utc_now().isoformat()),
+                (
+                    json.dumps(policy, separators=(",", ":")),
+                    self._utc_now().isoformat(),
+                ),
             )
         return policy
 
@@ -321,35 +363,51 @@ class StorageManager:
         policy = self.get_retention_policy()
         now = self._utc_now()
         cutoffs = {
-            "raw_sensor_messages": (now - timedelta(days=policy["raw_messages_days"])).isoformat(),
+            "raw_sensor_messages": (
+                now - timedelta(days=policy["raw_messages_days"])
+            ).isoformat(),
             "telemetry": (now - timedelta(days=policy["telemetry_days"])).isoformat(),
-            "application_logs": (now - timedelta(days=policy["application_logs_days"])).isoformat(),
-            "system_metric_snapshots": (now - timedelta(days=policy["system_snapshots_days"])).isoformat(),
+            "application_logs": (
+                now - timedelta(days=policy["application_logs_days"])
+            ).isoformat(),
+            "system_metric_snapshots": (
+                now - timedelta(days=policy["system_snapshots_days"])
+            ).isoformat(),
         }
         counts: dict[str, int] = {}
         with self._connect() as connection:
-            counts["raw_sensor_messages"] = int(connection.execute(
-                """
+            counts["raw_sensor_messages"] = int(
+                connection.execute(
+                    """
                 SELECT COUNT(*) AS c FROM raw_sensor_messages r
                 JOIN missions m ON m.mission_id=r.mission_id
                 WHERE r.received_at_utc < ? AND m.status IN ('COMPLETED','ABORTED')
-                """, (cutoffs["raw_sensor_messages"],)
-            ).fetchone()["c"])
-            counts["telemetry"] = int(connection.execute(
-                """
+                """,
+                    (cutoffs["raw_sensor_messages"],),
+                ).fetchone()["c"]
+            )
+            counts["telemetry"] = int(
+                connection.execute(
+                    """
                 SELECT COUNT(*) AS c FROM telemetry t
                 JOIN missions m ON m.mission_id=t.mission_id
                 WHERE t.received_at_utc < ? AND m.status IN ('COMPLETED','ABORTED')
-                """, (cutoffs["telemetry"],)
-            ).fetchone()["c"])
-            counts["application_logs"] = int(connection.execute(
-                "SELECT COUNT(*) AS c FROM application_logs WHERE timestamp_utc < ?",
-                (cutoffs["application_logs"],),
-            ).fetchone()["c"])
-            counts["system_metric_snapshots"] = int(connection.execute(
-                "SELECT COUNT(*) AS c FROM system_metric_snapshots WHERE timestamp_utc < ?",
-                (cutoffs["system_metric_snapshots"],),
-            ).fetchone()["c"])
+                """,
+                    (cutoffs["telemetry"],),
+                ).fetchone()["c"]
+            )
+            counts["application_logs"] = int(
+                connection.execute(
+                    "SELECT COUNT(*) AS c FROM application_logs WHERE timestamp_utc < ?",
+                    (cutoffs["application_logs"],),
+                ).fetchone()["c"]
+            )
+            counts["system_metric_snapshots"] = int(
+                connection.execute(
+                    "SELECT COUNT(*) AS c FROM system_metric_snapshots WHERE timestamp_utc < ?",
+                    (cutoffs["system_metric_snapshots"],),
+                ).fetchone()["c"]
+            )
         return {
             "generated_at_utc": now.isoformat(),
             "policy": policy,
@@ -373,7 +431,8 @@ class StorageManager:
                 WHERE received_at_utc < ? AND mission_id IN (
                     SELECT mission_id FROM missions WHERE status IN ('COMPLETED','ABORTED')
                 )
-                """, (cutoffs["raw_sensor_messages"],)
+                """,
+                (cutoffs["raw_sensor_messages"],),
             )
             deleted["raw_sensor_messages"] = cursor.rowcount
             cursor = connection.execute(
@@ -382,11 +441,13 @@ class StorageManager:
                 WHERE received_at_utc < ? AND mission_id IN (
                     SELECT mission_id FROM missions WHERE status IN ('COMPLETED','ABORTED')
                 )
-                """, (cutoffs["telemetry"],)
+                """,
+                (cutoffs["telemetry"],),
             )
             deleted["telemetry"] = cursor.rowcount
             cursor = connection.execute(
-                "DELETE FROM application_logs WHERE timestamp_utc < ?", (cutoffs["application_logs"],)
+                "DELETE FROM application_logs WHERE timestamp_utc < ?",
+                (cutoffs["application_logs"],),
             )
             deleted["application_logs"] = cursor.rowcount
             cursor = connection.execute(
@@ -420,14 +481,21 @@ class StorageManager:
         counts: dict[str, int] = {}
         with self._connect() as connection:
             for key, table in tables.items():
-                counts[key] = int(connection.execute(
-                    f'SELECT COUNT(*) AS c FROM "{table}" WHERE mission_id = ?', (mission_id,)
-                ).fetchone()["c"])
+                counts[key] = int(
+                    connection.execute(
+                        f'SELECT COUNT(*) AS c FROM "{table}" WHERE mission_id = ?',
+                        (mission_id,),
+                    ).fetchone()["c"]
+                )
         estimated_bytes = 0
-        database_size = self.database_path.stat().st_size if self.database_path.exists() else 0
+        database_size = (
+            self.database_path.stat().st_size if self.database_path.exists() else 0
+        )
         total_db_rows = sum(item["row_count"] for item in self.table_statistics())
         if total_db_rows:
-            estimated_bytes = int(database_size * (sum(counts.values()) + 1) / total_db_rows)
+            estimated_bytes = int(
+                database_size * (sum(counts.values()) + 1) / total_db_rows
+            )
         return {
             "mission": mission,
             "related_rows": counts,
@@ -437,22 +505,34 @@ class StorageManager:
             "warning": "This operation permanently deletes the Mission and all linked operational data.",
         }
 
-    def delete_mission(self, mission_id: str, confirmation: str) -> dict[str, Any] | None:
+    def delete_mission(
+        self, mission_id: str, confirmation: str
+    ) -> dict[str, Any] | None:
         preview = self.mission_delete_preview(mission_id)
         if preview is None:
             return None
         if confirmation != mission_id:
             raise ValueError("confirmation must exactly match mission_id")
         order = [
-            "alerts", "integrity_events", "mission_events", "obstacle_interaction_state",
-            "obstacle_interactions", "vehicle_heartbeats", "raw_sensor_messages", "telemetry",
+            "alerts",
+            "integrity_events",
+            "mission_events",
+            "obstacle_interaction_state",
+            "obstacle_interactions",
+            "vehicle_heartbeats",
+            "raw_sensor_messages",
+            "telemetry",
         ]
         deleted: dict[str, int] = {}
         with self._lock, self._connect() as connection:
             for table in order:
-                cursor = connection.execute(f'DELETE FROM "{table}" WHERE mission_id = ?', (mission_id,))
+                cursor = connection.execute(
+                    f'DELETE FROM "{table}" WHERE mission_id = ?', (mission_id,)
+                )
                 deleted[table] = cursor.rowcount
-            cursor = connection.execute("DELETE FROM missions WHERE mission_id = ?", (mission_id,))
+            cursor = connection.execute(
+                "DELETE FROM missions WHERE mission_id = ?", (mission_id,)
+            )
             deleted["missions"] = cursor.rowcount
         return {
             "mission_id": mission_id,
@@ -467,7 +547,13 @@ class StorageManager:
     def create_export_job(self, mission_id: str, export_format: str) -> dict[str, Any]:
         if self.repository.get_mission(mission_id) is None:
             raise LookupError("Mission not found")
-        if export_format not in {"package", "telemetry_csv", "telemetry_jsonl", "raw_csv", "raw_jsonl"}:
+        if export_format not in {
+            "package",
+            "telemetry_csv",
+            "telemetry_jsonl",
+            "raw_csv",
+            "raw_jsonl",
+        }:
             raise ValueError("Unsupported export format")
         job_id = f"EXPORT-{uuid4().hex.upper()}"
         now = self._utc_now().isoformat()
@@ -477,23 +563,32 @@ class StorageManager:
                 INSERT INTO export_jobs(
                     job_id, mission_id, export_format, state, progress_percent, created_at_utc
                 ) VALUES (?, ?, ?, 'QUEUED', 0, ?)
-                """, (job_id, mission_id, export_format, now)
+                """,
+                (job_id, mission_id, export_format, now),
             )
         return self.get_export_job(job_id) or {}
 
     @staticmethod
     def _decode_export_job(row: sqlite3.Row) -> dict[str, Any]:
         result = dict(row)
-        result["metadata"] = StorageManager._load_json(result.pop("metadata_json", "{}"))
-        result["download_ready"] = result.get("state") == "COMPLETED" and bool(result.get("file_path"))
+        result["metadata"] = StorageManager._load_json(
+            result.pop("metadata_json", "{}")
+        )
+        result["download_ready"] = result.get("state") == "COMPLETED" and bool(
+            result.get("file_path")
+        )
         return result
 
     def get_export_job(self, job_id: str) -> dict[str, Any] | None:
         with self._connect() as connection:
-            row = connection.execute("SELECT * FROM export_jobs WHERE job_id = ?", (job_id,)).fetchone()
+            row = connection.execute(
+                "SELECT * FROM export_jobs WHERE job_id = ?", (job_id,)
+            ).fetchone()
         return self._decode_export_job(row) if row else None
 
-    def list_export_jobs(self, mission_id: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+    def list_export_jobs(
+        self, mission_id: str | None = None, limit: int = 100
+    ) -> list[dict[str, Any]]:
         with self._connect() as connection:
             if mission_id:
                 rows = connection.execute(
@@ -502,7 +597,8 @@ class StorageManager:
                 ).fetchall()
             else:
                 rows = connection.execute(
-                    "SELECT * FROM export_jobs ORDER BY created_at_utc DESC LIMIT ?", (limit,)
+                    "SELECT * FROM export_jobs ORDER BY created_at_utc DESC LIMIT ?",
+                    (limit,),
                 ).fetchall()
         return [self._decode_export_job(row) for row in rows]
 
@@ -513,7 +609,9 @@ class StorageManager:
                 (self._utc_now().isoformat(), job_id),
             )
 
-    def complete_export_job(self, job_id: str, file_path: Path, metadata: dict[str, Any] | None = None) -> dict[str, Any]:
+    def complete_export_job(
+        self, job_id: str, file_path: Path, metadata: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         file_path = Path(file_path)
         with self._lock, self._connect() as connection:
             connection.execute(
@@ -524,8 +622,12 @@ class StorageManager:
                 WHERE job_id=?
                 """,
                 (
-                    self._utc_now().isoformat(), file_path.name, str(file_path),
-                    file_path.stat().st_size, json.dumps(metadata or {}, separators=(",", ":")), job_id,
+                    self._utc_now().isoformat(),
+                    file_path.name,
+                    str(file_path),
+                    file_path.stat().st_size,
+                    json.dumps(metadata or {}, separators=(",", ":")),
+                    job_id,
                 ),
             )
         return self.get_export_job(job_id) or {}
@@ -536,7 +638,8 @@ class StorageManager:
                 """
                 UPDATE export_jobs SET state='FAILED', completed_at_utc=?, error_message=?
                 WHERE job_id=?
-                """, (self._utc_now().isoformat(), error[:4000], job_id)
+                """,
+                (self._utc_now().isoformat(), error[:4000], job_id),
             )
         return self.get_export_job(job_id) or {}
 
@@ -554,7 +657,8 @@ class StorageManager:
                 """
                 INSERT INTO storage_backups(backup_id, label, state, created_at_utc)
                 VALUES (?, ?, 'RUNNING', ?)
-                """, (backup_id, label or "manual", now.isoformat())
+                """,
+                (backup_id, label or "manual", now.isoformat()),
             )
         try:
             source = sqlite3.connect(self.database_path, timeout=30.0)
@@ -572,7 +676,14 @@ class StorageManager:
                         file_name=?, file_path=?, file_size_bytes=?, sha256=?
                     WHERE backup_id=?
                     """,
-                    (self._utc_now().isoformat(), file_name, str(output_path), output_path.stat().st_size, digest, backup_id),
+                    (
+                        self._utc_now().isoformat(),
+                        file_name,
+                        str(output_path),
+                        output_path.stat().st_size,
+                        digest,
+                        backup_id,
+                    ),
                 )
         except Exception as exc:
             with self._lock, self._connect() as connection:
@@ -585,19 +696,26 @@ class StorageManager:
     @staticmethod
     def _decode_backup(row: sqlite3.Row) -> dict[str, Any]:
         result = dict(row)
-        result["metadata"] = StorageManager._load_json(result.pop("metadata_json", "{}"))
-        result["download_ready"] = result.get("state") == "COMPLETED" and bool(result.get("file_path"))
+        result["metadata"] = StorageManager._load_json(
+            result.pop("metadata_json", "{}")
+        )
+        result["download_ready"] = result.get("state") == "COMPLETED" and bool(
+            result.get("file_path")
+        )
         return result
 
     def get_backup(self, backup_id: str) -> dict[str, Any] | None:
         with self._connect() as connection:
-            row = connection.execute("SELECT * FROM storage_backups WHERE backup_id=?", (backup_id,)).fetchone()
+            row = connection.execute(
+                "SELECT * FROM storage_backups WHERE backup_id=?", (backup_id,)
+            ).fetchone()
         return self._decode_backup(row) if row else None
 
     def list_backups(self, limit: int = 100) -> list[dict[str, Any]]:
         with self._connect() as connection:
             rows = connection.execute(
-                "SELECT * FROM storage_backups ORDER BY created_at_utc DESC LIMIT ?", (limit,)
+                "SELECT * FROM storage_backups ORDER BY created_at_utc DESC LIMIT ?",
+                (limit,),
             ).fetchall()
         return [self._decode_backup(row) for row in rows]
 
@@ -616,7 +734,11 @@ class StorageManager:
         started = self._utc_now()
         with self._lock, self._connect() as connection:
             connection.execute("ANALYZE")
-        return {"operation": "ANALYZE", "status": "COMPLETED", "completed_at_utc": started.isoformat()}
+        return {
+            "operation": "ANALYZE",
+            "status": "COMPLETED",
+            "completed_at_utc": started.isoformat(),
+        }
 
     def checkpoint(self) -> dict[str, Any]:
         with self._lock, self._connect() as connection:
@@ -633,7 +755,9 @@ class StorageManager:
     def vacuum(self) -> dict[str, Any]:
         started = self._utc_now()
         with self._lock:
-            connection = sqlite3.connect(self.database_path, timeout=30.0, isolation_level=None)
+            connection = sqlite3.connect(
+                self.database_path, timeout=30.0, isolation_level=None
+            )
             try:
                 connection.execute("VACUUM")
             finally:
@@ -642,11 +766,15 @@ class StorageManager:
             "operation": "VACUUM",
             "status": "COMPLETED",
             "completed_at_utc": self._utc_now().isoformat(),
-            "database_size_bytes": self.database_path.stat().st_size if self.database_path.exists() else 0,
+            "database_size_bytes": (
+                self.database_path.stat().st_size if self.database_path.exists() else 0
+            ),
         }
 
 
-def build_export_content(repository: Any, mission_id: str, export_format: str) -> tuple[bytes, str, str]:
+def build_export_content(
+    repository: Any, mission_id: str, export_format: str
+) -> tuple[bytes, str, str]:
     """Build an export payload and return bytes, filename, and media type."""
     mission = repository.get_mission(mission_id)
     if mission is None:
@@ -656,44 +784,79 @@ def build_export_content(repository: Any, mission_id: str, export_format: str) -
     raw_records = repository.raw_history(mission_id=mission_id, limit=1_000_000)
 
     if export_format == "telemetry_jsonl":
-        text = "\n".join(json.dumps(item, separators=(",", ":")) for item in telemetry_records)
-        return ((text + "\n") if text else "").encode("utf-8"), f"{safe_id}.jsonl", "application/x-ndjson"
+        text = "\n".join(
+            json.dumps(item, separators=(",", ":")) for item in telemetry_records
+        )
+        return (
+            ((text + "\n") if text else "").encode("utf-8"),
+            f"{safe_id}.jsonl",
+            "application/x-ndjson",
+        )
 
     if export_format == "telemetry_csv":
         output = io.StringIO(newline="")
         flattened = repository.flatten_for_csv(telemetry_records)
         if flattened:
             writer = csv.DictWriter(output, fieldnames=list(flattened[0].keys()))
-            writer.writeheader(); writer.writerows(flattened)
+            writer.writeheader()
+            writer.writerows(flattened)
         else:
             output.write("mission_id\n")
         return output.getvalue().encode("utf-8"), f"{safe_id}.csv", "text/csv"
 
     if export_format in {"raw_jsonl", "raw_csv"}:
         if export_format == "raw_jsonl":
-            text = "\n".join(json.dumps(item, separators=(",", ":")) for item in raw_records)
-            return ((text + "\n") if text else "").encode("utf-8"), f"{safe_id}-raw.jsonl", "application/x-ndjson"
+            text = "\n".join(
+                json.dumps(item, separators=(",", ":")) for item in raw_records
+            )
+            return (
+                ((text + "\n") if text else "").encode("utf-8"),
+                f"{safe_id}-raw.jsonl",
+                "application/x-ndjson",
+            )
         fields = [
-            "message_id", "vehicle_id", "sensor_id", "mission_id", "sequence_no",
-            "timestamp_utc", "received_at_utc", "latency_ms", "message_type",
-            "transport", "topic", "valid", "confidence", "payload_json",
+            "message_id",
+            "vehicle_id",
+            "sensor_id",
+            "mission_id",
+            "sequence_no",
+            "timestamp_utc",
+            "received_at_utc",
+            "latency_ms",
+            "message_type",
+            "transport",
+            "topic",
+            "valid",
+            "confidence",
+            "payload_json",
         ]
         output = io.StringIO(newline="")
-        writer = csv.DictWriter(output, fieldnames=fields); writer.writeheader()
+        writer = csv.DictWriter(output, fieldnames=fields)
+        writer.writeheader()
         for item in raw_records:
-            writer.writerow({
-                **{key: item.get(key) for key in fields if key not in {"valid", "confidence", "payload_json"}},
-                "valid": item.get("quality", {}).get("valid"),
-                "confidence": item.get("quality", {}).get("confidence"),
-                "payload_json": json.dumps(item.get("payload", {}), separators=(",", ":")),
-            })
+            writer.writerow(
+                {
+                    **{
+                        key: item.get(key)
+                        for key in fields
+                        if key not in {"valid", "confidence", "payload_json"}
+                    },
+                    "valid": item.get("quality", {}).get("valid"),
+                    "confidence": item.get("quality", {}).get("confidence"),
+                    "payload_json": json.dumps(
+                        item.get("payload", {}), separators=(",", ":")
+                    ),
+                }
+            )
         return output.getvalue().encode("utf-8"), f"{safe_id}-raw.csv", "text/csv"
 
     if export_format != "package":
         raise ValueError("Unsupported export format")
 
     events = repository.list_events(mission_id)
-    integrity_events = repository.list_integrity_events(mission_id=mission_id, limit=1_000_000)
+    integrity_events = repository.list_integrity_events(
+        mission_id=mission_id, limit=1_000_000
+    )
     alerts = repository.list_alerts(mission_id=mission_id, limit=100_000)
     quality = repository.quality_summary(mission_id) or {}
     integrity_metrics = repository.mission_integrity_metrics(mission_id) or {}
@@ -720,7 +883,10 @@ def build_export_content(repository: Any, mission_id: str, export_format: str) -
     try:
         connection = sqlite3.connect(repository._database_path, timeout=30.0)
         connection.row_factory = sqlite3.Row
-        row = connection.execute("SELECT snapshot_json, sha256, scenario_version, created_at_utc FROM mission_environment_snapshots WHERE mission_id = ?", (mission_id,)).fetchone()
+        row = connection.execute(
+            "SELECT snapshot_json, sha256, scenario_version, created_at_utc FROM mission_environment_snapshots WHERE mission_id = ?",
+            (mission_id,),
+        ).fetchone()
         connection.close()
         if row:
             environment = json.loads(row["snapshot_json"] or "{}")
@@ -730,21 +896,31 @@ def build_export_content(repository: Any, mission_id: str, export_format: str) -
     except sqlite3.Error:
         environment = {}
 
-    telemetry_jsonl, _, _ = build_export_content(repository, mission_id, "telemetry_jsonl")
+    telemetry_jsonl, _, _ = build_export_content(
+        repository, mission_id, "telemetry_jsonl"
+    )
     telemetry_csv, _, _ = build_export_content(repository, mission_id, "telemetry_csv")
     raw_jsonl, _, _ = build_export_content(repository, mission_id, "raw_jsonl")
     raw_csv, _, _ = build_export_content(repository, mission_id, "raw_csv")
 
     package = io.BytesIO()
-    with zipfile.ZipFile(package, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+    with zipfile.ZipFile(
+        package, mode="w", compression=zipfile.ZIP_DEFLATED
+    ) as archive:
         archive.writestr("mission.json", json.dumps(mission, indent=2))
         archive.writestr("quality.json", json.dumps(quality, indent=2))
         archive.writestr("events.json", json.dumps(events, indent=2))
-        archive.writestr("integrity-events.json", json.dumps(integrity_events, indent=2))
-        archive.writestr("integrity-metrics.json", json.dumps(integrity_metrics, indent=2))
+        archive.writestr(
+            "integrity-events.json", json.dumps(integrity_events, indent=2)
+        )
+        archive.writestr(
+            "integrity-metrics.json", json.dumps(integrity_metrics, indent=2)
+        )
         archive.writestr("alerts.json", json.dumps(alerts, indent=2))
         archive.writestr("environment.json", json.dumps(environment, indent=2))
-        archive.writestr("obstacle-interactions.json", json.dumps(obstacle_interactions, indent=2))
+        archive.writestr(
+            "obstacle-interactions.json", json.dumps(obstacle_interactions, indent=2)
+        )
         archive.writestr("telemetry.csv", telemetry_csv)
         archive.writestr("telemetry.jsonl", telemetry_jsonl)
         archive.writestr("raw-messages.csv", raw_csv)

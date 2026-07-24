@@ -126,7 +126,9 @@ class MqttBridge:
                 raise RuntimeError(self.last_error)
 
             if not self.connected:
-                raise RuntimeError(self.last_error or "MQTT connection was not accepted")
+                raise RuntimeError(
+                    self.last_error or "MQTT connection was not accepted"
+                )
         except Exception as exc:  # pragma: no cover - network dependent
             if self.last_error is None:
                 self.last_error = str(exc)
@@ -139,11 +141,15 @@ class MqttBridge:
                 try:
                     client.loop_stop()
                 except Exception:
-                    logger.debug("MQTT loop stop after startup failure failed", exc_info=True)
+                    logger.debug(
+                        "MQTT loop stop after startup failure failed", exc_info=True
+                    )
                 try:
                     client.disconnect()
                 except Exception:
-                    logger.debug("MQTT disconnect after startup failure failed", exc_info=True)
+                    logger.debug(
+                        "MQTT disconnect after startup failure failed", exc_info=True
+                    )
             raise
 
     def stop(self) -> None:

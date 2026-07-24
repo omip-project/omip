@@ -1,5 +1,5 @@
-from pathlib import Path
 from datetime import datetime, timezone
+from pathlib import Path
 from uuid import uuid4
 
 from app.database import OmipRepository
@@ -24,14 +24,16 @@ def test_constraint_violation_lifecycle_and_near_miss(tmp_path: Path) -> None:
             "geometry": {"length_m": 2.0, "width_m": 1.0, "height_m": 1.0},
             "operational_limits": {"safety_margin_m": 0.5},
         },
-        "constraints": [{
-            "constraint_id": "SPEED-1",
-            "name": "Low speed zone",
-            "constraint_type": "SPEED_LIMIT",
-            "value": 2.0,
-            "unit": "m/s",
-            "geometry": {},
-        }],
+        "constraints": [
+            {
+                "constraint_id": "SPEED-1",
+                "name": "Low speed zone",
+                "constraint_type": "SPEED_LIMIT",
+                "value": 2.0,
+                "unit": "m/s",
+                "geometry": {},
+            }
+        ],
         "obstacles": [],
         "external_fields": [],
     }

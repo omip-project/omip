@@ -9,24 +9,12 @@ from pathlib import Path
 from typing import Any, Iterable
 from uuid import uuid4
 
-from .schemas import (
-    MissionCreate,
-    MissionEventCreate,
-    MissionEventUpdate,
-    IntegrityFinding,
-    MissionStatus,
-    RawSensorMessage,
-    SensorCreate,
-    SensorUpdate,
-    TelemetryFrame,
-    TransportType,
-    VehicleCreate,
-    VehicleHeartbeat,
-    VehicleUpdate,
-    VehicleProfileCreate,
-    VehicleProfileUpdate,
-    SimulationRunCreate,
-)
+from .schemas import (IntegrityFinding, MissionCreate, MissionEventCreate,
+                      MissionEventUpdate, MissionStatus, RawSensorMessage,
+                      SensorCreate, SensorUpdate, SimulationRunCreate,
+                      TelemetryFrame, TransportType, VehicleCreate,
+                      VehicleHeartbeat, VehicleProfileCreate,
+                      VehicleProfileUpdate, VehicleUpdate)
 
 
 class OmipRepository:
@@ -54,8 +42,7 @@ class OmipRepository:
 
     def _initialise(self) -> None:
         with self._connect() as connection:
-            connection.executescript(
-                """
+            connection.executescript("""
                 CREATE TABLE IF NOT EXISTS vehicles (
                     vehicle_id TEXT PRIMARY KEY,
                     vehicle_name TEXT NOT NULL,
@@ -373,8 +360,7 @@ class OmipRepository:
                     ON system_metric_snapshots(timestamp_utc DESC);
                 CREATE INDEX IF NOT EXISTS idx_platform_alerts_status_time
                     ON platform_alerts(status, last_detected_at_utc DESC);
-                """
-            )
+                """)
 
             # Preserve compatibility when a v0.2 database is copied into v0.3.
             telemetry_columns = {
@@ -390,7 +376,9 @@ class OmipRepository:
             }
             for name, definition in migrations.items():
                 if name not in telemetry_columns:
-                    connection.execute(f"ALTER TABLE telemetry ADD COLUMN {name} {definition}")
+                    connection.execute(
+                        f"ALTER TABLE telemetry ADD COLUMN {name} {definition}"
+                    )
 
             vehicle_columns = {
                 str(row["name"])
@@ -403,7 +391,9 @@ class OmipRepository:
             }
             for name, definition in vehicle_migrations.items():
                 if name not in vehicle_columns:
-                    connection.execute(f"ALTER TABLE vehicles ADD COLUMN {name} {definition}")
+                    connection.execute(
+                        f"ALTER TABLE vehicles ADD COLUMN {name} {definition}"
+                    )
 
             alert_columns = {
                 str(row["name"])
@@ -415,11 +405,15 @@ class OmipRepository:
             }
             for name, definition in alert_migrations.items():
                 if name not in alert_columns:
-                    connection.execute(f"ALTER TABLE alerts ADD COLUMN {name} {definition}")
+                    connection.execute(
+                        f"ALTER TABLE alerts ADD COLUMN {name} {definition}"
+                    )
 
             platform_alert_columns = {
                 str(row["name"])
-                for row in connection.execute("PRAGMA table_info(platform_alerts)").fetchall()
+                for row in connection.execute(
+                    "PRAGMA table_info(platform_alerts)"
+                ).fetchall()
             }
             platform_alert_migrations = {
                 "acknowledged_at_utc": "TEXT",
@@ -433,13 +427,11 @@ class OmipRepository:
                     )
 
             now = self._utc_now().isoformat()
-            legacy_vehicles = connection.execute(
-                """
+            legacy_vehicles = connection.execute("""
                 SELECT vehicle_id FROM missions
                 UNION
                 SELECT vehicle_id FROM telemetry
-                """
-            ).fetchall()
+                """).fetchall()
             for row in legacy_vehicles:
                 vehicle_id = str(row["vehicle_id"])
                 connection.execute(
@@ -458,14 +450,12 @@ class OmipRepository:
                     ),
                 )
 
-            legacy_missions = connection.execute(
-                """
+            legacy_missions = connection.execute("""
                 SELECT mission_id, vehicle_id, MIN(timestamp_utc) AS first_time,
                        MAX(timestamp_utc) AS last_time
                 FROM telemetry
                 GROUP BY mission_id, vehicle_id
-                """
-            ).fetchall()
+                """).fetchall()
             for row in legacy_missions:
                 connection.execute(
                     """
@@ -509,11 +499,15 @@ class OmipRepository:
             seen = datetime.fromisoformat(timestamp)
             if seen.tzinfo is None or seen.utcoffset() is None:
                 seen = seen.replace(tzinfo=timezone.utc)
-            return max(0.0, (self._utc_now() - seen.astimezone(timezone.utc)).total_seconds())
+            return max(
+                0.0, (self._utc_now() - seen.astimezone(timezone.utc)).total_seconds()
+            )
         except ValueError:
             return None
 
-    def _connection_status(self, last_seen: str | None, enabled: bool) -> tuple[str, float | None]:
+    def _connection_status(
+        self, last_seen: str | None, enabled: bool
+    ) -> tuple[str, float | None]:
         if not enabled:
             return "DISABLED", None
         age_s = self._age_seconds(last_seen)
@@ -565,9 +559,17 @@ class OmipRepository:
             else:
                 reason = "Running mission has not produced activity yet"
         elif latest_mission_status or activity_at:
-            status, age_s, reason = "INACTIVE", self._age_seconds(activity_at), "No mission is currently running"
+            status, age_s, reason = (
+                "INACTIVE",
+                self._age_seconds(activity_at),
+                "No mission is currently running",
+            )
         else:
-            status, age_s, reason = "UNKNOWN", None, "No mission or vehicle activity has been recorded"
+            status, age_s, reason = (
+                "UNKNOWN",
+                None,
+                "No mission or vehicle activity has been recorded",
+            )
         record["connection_status"] = status
         record["connection_status_reason"] = reason
         record["activity_age_s"] = round(age_s, 3) if age_s is not None else None
@@ -581,11 +583,17 @@ class OmipRepository:
             status, age_s, reason = "DISABLED", None, "Sensor is disabled"
         elif not record.get("active_mission_id"):
             if record.get("latest_mission_status") or record.get("last_seen_at_utc"):
-                status, age_s, reason = "INACTIVE", self._age_seconds(record.get("last_seen_at_utc")), "No mission is currently running"
+                status, age_s, reason = (
+                    "INACTIVE",
+                    self._age_seconds(record.get("last_seen_at_utc")),
+                    "No mission is currently running",
+                )
             else:
                 status, age_s, reason = "UNKNOWN", None, "Sensor has not produced data"
         else:
-            status, age_s = self._connection_status(record.get("last_seen_at_utc"), True)
+            status, age_s = self._connection_status(
+                record.get("last_seen_at_utc"), True
+            )
             reasons = {
                 "ONLINE": "Sensor data is arriving normally",
                 "DEGRADED": "Sensor data is arriving late",
@@ -634,15 +642,21 @@ class OmipRepository:
     @staticmethod
     def _decode_simulation_run(row: sqlite3.Row) -> dict[str, Any]:
         record = dict(row)
-        record["parameter_overrides"] = json.loads(record.pop("parameter_overrides_json") or "{}")
-        record["effective_parameters"] = json.loads(record.pop("effective_parameters_json") or "{}")
+        record["parameter_overrides"] = json.loads(
+            record.pop("parameter_overrides_json") or "{}"
+        )
+        record["effective_parameters"] = json.loads(
+            record.pop("effective_parameters_json") or "{}"
+        )
         record["command"] = json.loads(record.pop("command_json") or "[]")
         return record
 
     # ------------------------------------------------------------------
     # Vehicle profiles and parameter definitions
     # ------------------------------------------------------------------
-    def seed_vehicle_parameter_definitions(self, definitions: dict[str, dict[str, dict[str, Any]]]) -> None:
+    def seed_vehicle_parameter_definitions(
+        self, definitions: dict[str, dict[str, dict[str, Any]]]
+    ) -> None:
         now = self._utc_now().isoformat()
         with self._lock, self._connect() as connection:
             for vehicle_type, items in definitions.items():
@@ -654,10 +668,17 @@ class OmipRepository:
                         ON CONFLICT(vehicle_type, parameter_path) DO UPDATE SET
                             definition_json = excluded.definition_json, updated_at_utc = excluded.updated_at_utc
                         """,
-                        (vehicle_type, path, json.dumps(definition, separators=(",", ":")), now),
+                        (
+                            vehicle_type,
+                            path,
+                            json.dumps(definition, separators=(",", ":")),
+                            now,
+                        ),
                     )
 
-    def list_vehicle_parameter_definitions(self, vehicle_type: str | None = None) -> list[dict[str, Any]]:
+    def list_vehicle_parameter_definitions(
+        self, vehicle_type: str | None = None
+    ) -> list[dict[str, Any]]:
         sql = "SELECT * FROM vehicle_parameter_definitions"
         params: list[Any] = []
         if vehicle_type:
@@ -673,7 +694,9 @@ class OmipRepository:
             result.append(record)
         return result
 
-    def upsert_vehicle_profile(self, request: VehicleProfileCreate, *, built_in: bool = False) -> dict[str, Any]:
+    def upsert_vehicle_profile(
+        self, request: VehicleProfileCreate, *, built_in: bool = False
+    ) -> dict[str, Any]:
         now = self._utc_now().isoformat()
         with self._lock, self._connect() as connection:
             connection.execute(
@@ -689,10 +712,19 @@ class OmipRepository:
                     enabled=excluded.enabled, built_in=MAX(vehicle_profiles.built_in, excluded.built_in),
                     updated_at_utc=excluded.updated_at_utc
                 """,
-                (request.profile_id, request.profile_name, request.vehicle_type, request.schema_version,
-                 request.description, json.dumps(request.capabilities, separators=(",", ":")),
-                 json.dumps(request.parameters, separators=(",", ":")), 1 if request.enabled else 0,
-                 1 if built_in else 0, now, now),
+                (
+                    request.profile_id,
+                    request.profile_name,
+                    request.vehicle_type,
+                    request.schema_version,
+                    request.description,
+                    json.dumps(request.capabilities, separators=(",", ":")),
+                    json.dumps(request.parameters, separators=(",", ":")),
+                    1 if request.enabled else 0,
+                    1 if built_in else 0,
+                    now,
+                    now,
+                ),
             )
         profile = self.get_vehicle_profile(request.profile_id)
         if profile is None:
@@ -701,10 +733,14 @@ class OmipRepository:
 
     def get_vehicle_profile(self, profile_id: str) -> dict[str, Any] | None:
         with self._connect() as connection:
-            row = connection.execute("SELECT * FROM vehicle_profiles WHERE profile_id = ?", (profile_id,)).fetchone()
+            row = connection.execute(
+                "SELECT * FROM vehicle_profiles WHERE profile_id = ?", (profile_id,)
+            ).fetchone()
         return self._decode_vehicle_profile(row) if row else None
 
-    def list_vehicle_profiles(self, vehicle_type: str | None = None, enabled_only: bool = False) -> list[dict[str, Any]]:
+    def list_vehicle_profiles(
+        self, vehicle_type: str | None = None, enabled_only: bool = False
+    ) -> list[dict[str, Any]]:
         clauses: list[str] = []
         params: list[Any] = []
         if vehicle_type:
@@ -720,15 +756,23 @@ class OmipRepository:
             rows = connection.execute(sql, params).fetchall()
         return [self._decode_vehicle_profile(row) for row in rows]
 
-    def update_vehicle_profile(self, profile_id: str, request: VehicleProfileUpdate) -> dict[str, Any] | None:
+    def update_vehicle_profile(
+        self, profile_id: str, request: VehicleProfileUpdate
+    ) -> dict[str, Any] | None:
         current = self.get_vehicle_profile(profile_id)
         if current is None:
             return None
         updates = request.model_dump(exclude_unset=True)
         if not updates:
             return current
-        mapping = {"profile_name":"profile_name", "schema_version":"schema_version", "description":"description",
-                   "capabilities":"capabilities_json", "parameters":"parameters_json", "enabled":"enabled"}
+        mapping = {
+            "profile_name": "profile_name",
+            "schema_version": "schema_version",
+            "description": "description",
+            "capabilities": "capabilities_json",
+            "parameters": "parameters_json",
+            "enabled": "enabled",
+        }
         assignments: list[str] = []
         params: list[Any] = []
         for key, value in updates.items():
@@ -741,49 +785,98 @@ class OmipRepository:
         assignments.append("updated_at_utc = ?")
         params.extend([self._utc_now().isoformat(), profile_id])
         with self._lock, self._connect() as connection:
-            connection.execute(f"UPDATE vehicle_profiles SET {', '.join(assignments)} WHERE profile_id = ?", params)
+            connection.execute(
+                f"UPDATE vehicle_profiles SET {', '.join(assignments)} WHERE profile_id = ?",
+                params,
+            )
         return self.get_vehicle_profile(profile_id)
 
     def delete_vehicle_profile(self, profile_id: str) -> bool:
         with self._lock, self._connect() as connection:
-            row = connection.execute("SELECT built_in FROM vehicle_profiles WHERE profile_id = ?", (profile_id,)).fetchone()
+            row = connection.execute(
+                "SELECT built_in FROM vehicle_profiles WHERE profile_id = ?",
+                (profile_id,),
+            ).fetchone()
             if not row:
                 return False
             if bool(row["built_in"]):
-                raise ValueError("Built-in profiles cannot be deleted; disable or copy the profile instead")
-            in_use = connection.execute("SELECT COUNT(*) AS total FROM simulation_runs WHERE vehicle_profile_id = ?", (profile_id,)).fetchone()
+                raise ValueError(
+                    "Built-in profiles cannot be deleted; disable or copy the profile instead"
+                )
+            in_use = connection.execute(
+                "SELECT COUNT(*) AS total FROM simulation_runs WHERE vehicle_profile_id = ?",
+                (profile_id,),
+            ).fetchone()
             if in_use and int(in_use["total"]) > 0:
                 raise ValueError("Vehicle profile is referenced by simulation runs")
-            return connection.execute("DELETE FROM vehicle_profiles WHERE profile_id = ?", (profile_id,)).rowcount > 0
+            return (
+                connection.execute(
+                    "DELETE FROM vehicle_profiles WHERE profile_id = ?", (profile_id,)
+                ).rowcount
+                > 0
+            )
 
     # ------------------------------------------------------------------
     # Simulation runs
     # ------------------------------------------------------------------
-    def create_simulation_run_record(self, run_id: str, request: SimulationRunCreate, mission_id: str, effective_parameters: dict[str, Any]) -> dict[str, Any]:
+    def create_simulation_run_record(
+        self,
+        run_id: str,
+        request: SimulationRunCreate,
+        mission_id: str,
+        effective_parameters: dict[str, Any],
+    ) -> dict[str, Any]:
         now = self._utc_now().isoformat()
         with self._lock, self._connect() as connection:
             connection.execute(
                 """INSERT INTO simulation_runs (run_id, vehicle_id, vehicle_type, vehicle_profile_id, scenario_id, mission_id,
                     status, duration_s, transport, random_seed, parameter_overrides_json, effective_parameters_json,
                     created_at_utc, updated_at_utc) VALUES (?, ?, ?, ?, ?, ?, 'QUEUED', ?, ?, ?, ?, ?, ?, ?)""",
-                (run_id, request.vehicle_id, request.vehicle_type, request.vehicle_profile_id, request.scenario_id, mission_id,
-                 request.duration_s, request.transport, request.random_seed,
-                 json.dumps(request.parameter_overrides, separators=(",", ":")),
-                 json.dumps(effective_parameters, separators=(",", ":")), now, now),
+                (
+                    run_id,
+                    request.vehicle_id,
+                    request.vehicle_type,
+                    request.vehicle_profile_id,
+                    request.scenario_id,
+                    mission_id,
+                    request.duration_s,
+                    request.transport,
+                    request.random_seed,
+                    json.dumps(request.parameter_overrides, separators=(",", ":")),
+                    json.dumps(effective_parameters, separators=(",", ":")),
+                    now,
+                    now,
+                ),
             )
         record = self.get_simulation_run(run_id)
         if record is None:
             raise RuntimeError("Simulation run was not created")
         return record
 
-    def update_simulation_run(self, run_id: str, *, status: str | None = None, command: list[str] | None = None,
-                              process_id: int | None = None, exit_code: int | None = None, error_message: str | None = None,
-                              log_path: str | None = None, stop_reason: str | None = None, mark_started: bool = False,
-                              mark_ended: bool = False) -> dict[str, Any] | None:
+    def update_simulation_run(
+        self,
+        run_id: str,
+        *,
+        status: str | None = None,
+        command: list[str] | None = None,
+        process_id: int | None = None,
+        exit_code: int | None = None,
+        error_message: str | None = None,
+        log_path: str | None = None,
+        stop_reason: str | None = None,
+        mark_started: bool = False,
+        mark_ended: bool = False,
+    ) -> dict[str, Any] | None:
         assignments: list[str] = ["updated_at_utc = ?"]
         params: list[Any] = [self._utc_now().isoformat()]
-        for column, value in (("status", status), ("process_id", process_id), ("exit_code", exit_code),
-                              ("error_message", error_message), ("log_path", log_path), ("stop_reason", stop_reason)):
+        for column, value in (
+            ("status", status),
+            ("process_id", process_id),
+            ("exit_code", exit_code),
+            ("error_message", error_message),
+            ("log_path", log_path),
+            ("stop_reason", stop_reason),
+        ):
             if value is not None:
                 assignments.append(f"{column} = ?")
                 params.append(value)
@@ -798,19 +891,27 @@ class OmipRepository:
             params.append(self._utc_now().isoformat())
         params.append(run_id)
         with self._lock, self._connect() as connection:
-            cursor = connection.execute(f"UPDATE simulation_runs SET {', '.join(assignments)} WHERE run_id = ?", params)
+            cursor = connection.execute(
+                f"UPDATE simulation_runs SET {', '.join(assignments)} WHERE run_id = ?",
+                params,
+            )
             if cursor.rowcount == 0:
                 return None
         return self.get_simulation_run(run_id)
 
     def get_simulation_run(self, run_id: str) -> dict[str, Any] | None:
         with self._connect() as connection:
-            row = connection.execute("SELECT * FROM simulation_runs WHERE run_id = ?", (run_id,)).fetchone()
+            row = connection.execute(
+                "SELECT * FROM simulation_runs WHERE run_id = ?", (run_id,)
+            ).fetchone()
         return self._decode_simulation_run(row) if row else None
 
     def list_simulation_runs(self, limit: int = 100) -> list[dict[str, Any]]:
         with self._connect() as connection:
-            rows = connection.execute("SELECT * FROM simulation_runs ORDER BY created_at_utc DESC LIMIT ?", (limit,)).fetchall()
+            rows = connection.execute(
+                "SELECT * FROM simulation_runs ORDER BY created_at_utc DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
         return [self._decode_simulation_run(row) for row in rows]
 
     # ------------------------------------------------------------------
@@ -892,8 +993,7 @@ class OmipRepository:
 
     def list_vehicles(self) -> list[dict[str, Any]]:
         with self._connect() as connection:
-            rows = connection.execute(
-                """
+            rows = connection.execute("""
                 SELECT v.*,
                     (SELECT COUNT(*) FROM sensors s WHERE s.vehicle_id = v.vehicle_id) AS sensor_count,
                     (SELECT COUNT(*) FROM missions m WHERE m.vehicle_id = v.vehicle_id) AS mission_count,
@@ -910,11 +1010,12 @@ class OmipRepository:
                     (SELECT COUNT(*) FROM vehicle_heartbeats h WHERE h.vehicle_id = v.vehicle_id) AS heartbeat_count
                 FROM vehicles v
                 ORDER BY v.vehicle_id
-                """
-            ).fetchall()
+                """).fetchall()
         return [self._decode_vehicle(row) for row in rows]
 
-    def update_vehicle(self, vehicle_id: str, request: VehicleUpdate) -> dict[str, Any] | None:
+    def update_vehicle(
+        self, vehicle_id: str, request: VehicleUpdate
+    ) -> dict[str, Any] | None:
         updates = request.model_dump(exclude_unset=True)
         if not updates:
             return self.get_vehicle(vehicle_id)
@@ -944,7 +1045,8 @@ class OmipRepository:
         params.append(vehicle_id)
         with self._lock, self._connect() as connection:
             cursor = connection.execute(
-                f"UPDATE vehicles SET {', '.join(assignments)} WHERE vehicle_id = ?", params
+                f"UPDATE vehicles SET {', '.join(assignments)} WHERE vehicle_id = ?",
+                params,
             )
             if cursor.rowcount == 0:
                 return None
@@ -964,8 +1066,12 @@ class OmipRepository:
                 (vehicle_id, vehicle_id, vehicle_id, vehicle_id, vehicle_id),
             ).fetchone()
             if dependent and int(dependent["total"]) > 0:
-                raise ValueError("Vehicle has dependent sensors, missions or data; disable it instead")
-            cursor = connection.execute("DELETE FROM vehicles WHERE vehicle_id = ?", (vehicle_id,))
+                raise ValueError(
+                    "Vehicle has dependent sensors, missions or data; disable it instead"
+                )
+            cursor = connection.execute(
+                "DELETE FROM vehicles WHERE vehicle_id = ?", (vehicle_id,)
+            )
             return cursor.rowcount > 0
 
     # ------------------------------------------------------------------
@@ -1025,7 +1131,8 @@ class OmipRepository:
                 ),
             )
             row = connection.execute(
-                "SELECT vehicle_id FROM sensors WHERE sensor_id = ?", (message.sensor_id,)
+                "SELECT vehicle_id FROM sensors WHERE sensor_id = ?",
+                (message.sensor_id,),
             ).fetchone()
             if row and row["vehicle_id"] != message.vehicle_id:
                 raise ValueError(
@@ -1066,7 +1173,9 @@ class OmipRepository:
             ).fetchall()
         return [self._decode_sensor(row) for row in rows]
 
-    def update_sensor(self, sensor_id: str, request: SensorUpdate) -> dict[str, Any] | None:
+    def update_sensor(
+        self, sensor_id: str, request: SensorUpdate
+    ) -> dict[str, Any] | None:
         updates = request.model_dump(exclude_unset=True)
         if not updates:
             return self.get_sensor(sensor_id)
@@ -1095,7 +1204,8 @@ class OmipRepository:
         params.append(sensor_id)
         with self._lock, self._connect() as connection:
             cursor = connection.execute(
-                f"UPDATE sensors SET {', '.join(assignments)} WHERE sensor_id = ?", params
+                f"UPDATE sensors SET {', '.join(assignments)} WHERE sensor_id = ?",
+                params,
             )
             if cursor.rowcount == 0:
                 return None
@@ -1109,7 +1219,9 @@ class OmipRepository:
             ).fetchone()
             if count and int(count["total"]) > 0:
                 raise ValueError("Sensor has stored messages; disable it instead")
-            cursor = connection.execute("DELETE FROM sensors WHERE sensor_id = ?", (sensor_id,))
+            cursor = connection.execute(
+                "DELETE FROM sensors WHERE sensor_id = ?", (sensor_id,)
+            )
             return cursor.rowcount > 0
 
     # ------------------------------------------------------------------
@@ -1128,7 +1240,9 @@ class OmipRepository:
             if mission["vehicle_id"] != heartbeat.vehicle_id:
                 raise ValueError("Heartbeat mission_id does not belong to the vehicle")
         received_at = self._utc_now()
-        latency_ms = max(0.0, (received_at - heartbeat.timestamp_utc).total_seconds() * 1000.0)
+        latency_ms = max(
+            0.0, (received_at - heartbeat.timestamp_utc).total_seconds() * 1000.0
+        )
         record = heartbeat.model_dump(mode="json")
         record.update(
             {
@@ -1146,9 +1260,14 @@ class OmipRepository:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    str(heartbeat.message_id), heartbeat.vehicle_id, heartbeat.mission_id,
-                    heartbeat.timestamp_utc.isoformat(), received_at.isoformat(),
-                    heartbeat.state, transport, heartbeat.source,
+                    str(heartbeat.message_id),
+                    heartbeat.vehicle_id,
+                    heartbeat.mission_id,
+                    heartbeat.timestamp_utc.isoformat(),
+                    received_at.isoformat(),
+                    heartbeat.state,
+                    transport,
+                    heartbeat.source,
                     json.dumps(heartbeat.metadata, separators=(",", ":")),
                 ),
             )
@@ -1160,7 +1279,9 @@ class OmipRepository:
             )
         return record
 
-    def heartbeat_history(self, vehicle_id: str, limit: int = 100) -> list[dict[str, Any]]:
+    def heartbeat_history(
+        self, vehicle_id: str, limit: int = 100
+    ) -> list[dict[str, Any]]:
         with self._connect() as connection:
             rows = connection.execute(
                 """
@@ -1237,7 +1358,9 @@ class OmipRepository:
                 "SELECT vehicle_id FROM missions WHERE mission_id = ?", (mission_id,)
             ).fetchone()
             if row and row["vehicle_id"] != vehicle_id:
-                raise ValueError(f"Mission {mission_id} belongs to vehicle {row['vehicle_id']}")
+                raise ValueError(
+                    f"Mission {mission_id} belongs to vehicle {row['vehicle_id']}"
+                )
             connection.execute(
                 """
                 UPDATE missions
@@ -1296,7 +1419,9 @@ class OmipRepository:
             ).fetchall()
         return [self._decode_mission(row) for row in rows]
 
-    def transition_mission(self, mission_id: str, target: MissionStatus) -> dict[str, Any] | None:
+    def transition_mission(
+        self, mission_id: str, target: MissionStatus
+    ) -> dict[str, Any] | None:
         allowed: dict[str, set[str]] = {
             "PLANNED": {"RUNNING", "ABORTED"},
             "RUNNING": {"COMPLETED", "ABORTED"},
@@ -1312,7 +1437,9 @@ class OmipRepository:
             current = str(row["status"])
             if target != current:
                 if target not in allowed[current]:
-                    raise ValueError(f"Mission cannot transition from {current} to {target}")
+                    raise ValueError(
+                        f"Mission cannot transition from {current} to {target}"
+                    )
                 now = self._utc_now().isoformat()
                 started = now if target == "RUNNING" else None
                 ended = now if target in {"COMPLETED", "ABORTED"} else None
@@ -1333,7 +1460,9 @@ class OmipRepository:
     def insert_telemetry(self, frame: TelemetryFrame) -> dict[str, Any]:
         self.ensure_mission(frame.mission_id, frame.vehicle_id, frame.timestamp_utc)
         received_at = self._utc_now()
-        latency_ms = max(0.0, (received_at - frame.timestamp_utc).total_seconds() * 1000.0)
+        latency_ms = max(
+            0.0, (received_at - frame.timestamp_utc).total_seconds() * 1000.0
+        )
         payload = frame.model_dump(mode="json")
         payload["received_at_utc"] = received_at.isoformat()
         payload["latency_ms"] = round(latency_ms, 3)
@@ -1349,12 +1478,23 @@ class OmipRepository:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    str(frame.message_id), frame.vehicle_id, frame.mission_id,
-                    frame.sequence_no, frame.timestamp_utc.isoformat(), received_at.isoformat(),
-                    latency_ms, frame.position.x_m, frame.position.y_m, frame.position.z_m,
-                    frame.velocity.speed_mps, frame.state.battery_percent,
-                    frame.state.operating_mode, 1 if frame.quality.valid else 0,
-                    frame.quality.confidence, frame.source, frame.coordinate_frame,
+                    str(frame.message_id),
+                    frame.vehicle_id,
+                    frame.mission_id,
+                    frame.sequence_no,
+                    frame.timestamp_utc.isoformat(),
+                    received_at.isoformat(),
+                    latency_ms,
+                    frame.position.x_m,
+                    frame.position.y_m,
+                    frame.position.z_m,
+                    frame.velocity.speed_mps,
+                    frame.state.battery_percent,
+                    frame.state.operating_mode,
+                    1 if frame.quality.valid else 0,
+                    frame.quality.confidence,
+                    frame.source,
+                    frame.coordinate_frame,
                     json.dumps(payload, separators=(",", ":")),
                 ),
             )
@@ -1374,9 +1514,13 @@ class OmipRepository:
         topic: str | None = None,
     ) -> dict[str, Any]:
         self.ensure_sensor(message)
-        self.ensure_mission(message.mission_id, message.vehicle_id, message.timestamp_utc)
+        self.ensure_mission(
+            message.mission_id, message.vehicle_id, message.timestamp_utc
+        )
         received_at = self._utc_now()
-        latency_ms = max(0.0, (received_at - message.timestamp_utc).total_seconds() * 1000.0)
+        latency_ms = max(
+            0.0, (received_at - message.timestamp_utc).total_seconds() * 1000.0
+        )
         record = message.model_dump(mode="json")
         record.update(
             {
@@ -1396,10 +1540,19 @@ class OmipRepository:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    str(message.message_id), message.vehicle_id, message.sensor_id,
-                    message.mission_id, message.sequence_no, message.timestamp_utc.isoformat(),
-                    received_at.isoformat(), latency_ms, message.message_type, transport, topic,
-                    1 if message.quality.valid else 0, message.quality.confidence,
+                    str(message.message_id),
+                    message.vehicle_id,
+                    message.sensor_id,
+                    message.mission_id,
+                    message.sequence_no,
+                    message.timestamp_utc.isoformat(),
+                    received_at.isoformat(),
+                    latency_ms,
+                    message.message_type,
+                    transport,
+                    topic,
+                    1 if message.quality.valid else 0,
+                    message.quality.confidence,
                     json.dumps(record, separators=(",", ":")),
                 ),
             )
@@ -1413,9 +1566,11 @@ class OmipRepository:
                 WHERE sensor_id = ?
                 """,
                 (
-                    received_at.isoformat(), transport,
+                    received_at.isoformat(),
+                    transport,
                     0 if message.quality.valid else 1,
-                    received_at.isoformat(), message.sensor_id,
+                    received_at.isoformat(),
+                    message.sensor_id,
                 ),
             )
             connection.execute(
@@ -1460,7 +1615,9 @@ class OmipRepository:
         records.reverse()
         return records
 
-    def mission_history(self, mission_id: str, limit: int = 100_000) -> list[dict[str, Any]]:
+    def mission_history(
+        self, mission_id: str, limit: int = 100_000
+    ) -> list[dict[str, Any]]:
         with self._connect() as connection:
             rows = connection.execute(
                 """
@@ -1505,7 +1662,9 @@ class OmipRepository:
         records.reverse()
         return records
 
-    def sensor_quality_summary(self, sensor_id: str, mission_id: str | None = None) -> dict[str, Any] | None:
+    def sensor_quality_summary(
+        self, sensor_id: str, mission_id: str | None = None
+    ) -> dict[str, Any] | None:
         if self.get_sensor(sensor_id) is None:
             return None
         where = "sensor_id = ?"
@@ -1522,7 +1681,9 @@ class OmipRepository:
                 """,
                 params,
             ).fetchall()
-        return self._quality_from_rows(rows, {"sensor_id": sensor_id, "mission_id": mission_id})
+        return self._quality_from_rows(
+            rows, {"sensor_id": sensor_id, "mission_id": mission_id}
+        )
 
     def quality_summary(self, mission_id: str) -> dict[str, Any] | None:
         if self.get_mission(mission_id) is None:
@@ -1539,7 +1700,9 @@ class OmipRepository:
         return self._quality_from_rows(rows, {"mission_id": mission_id})
 
     @staticmethod
-    def _quality_from_rows(rows: list[sqlite3.Row], identity: dict[str, Any]) -> dict[str, Any]:
+    def _quality_from_rows(
+        rows: list[sqlite3.Row], identity: dict[str, Any]
+    ) -> dict[str, Any]:
         result: dict[str, Any] = {
             **identity,
             "message_count": len(rows),
@@ -1572,7 +1735,9 @@ class OmipRepository:
         first_time = datetime.fromisoformat(rows[0]["timestamp_utc"])
         last_time = datetime.fromisoformat(rows[-1]["timestamp_utc"])
         duration_s = max(0.0, (last_time - first_time).total_seconds())
-        rate_hz = (len(rows) - 1) / duration_s if len(rows) > 1 and duration_s > 0 else None
+        rate_hz = (
+            (len(rows) - 1) / duration_s if len(rows) > 1 and duration_s > 0 else None
+        )
         latencies = [float(row["latency_ms"]) for row in rows]
         confidences = [float(row["confidence"]) for row in rows]
         result.update(
@@ -1602,20 +1767,28 @@ class OmipRepository:
         sequence_no: int,
         rate_window_s: float = 10.0,
     ) -> dict[str, Any]:
-        cutoff = (self._utc_now() - timedelta(seconds=max(1.0, rate_window_s))).isoformat()
+        cutoff = (
+            self._utc_now() - timedelta(seconds=max(1.0, rate_window_s))
+        ).isoformat()
         with self._connect() as connection:
-            message_exists = connection.execute(
-                "SELECT 1 FROM raw_sensor_messages WHERE message_id = ? LIMIT 1",
-                (message_id,),
-            ).fetchone() is not None
-            sequence_exists = connection.execute(
-                """
+            message_exists = (
+                connection.execute(
+                    "SELECT 1 FROM raw_sensor_messages WHERE message_id = ? LIMIT 1",
+                    (message_id,),
+                ).fetchone()
+                is not None
+            )
+            sequence_exists = (
+                connection.execute(
+                    """
                 SELECT 1 FROM raw_sensor_messages
                 WHERE mission_id = ? AND sensor_id = ? AND sequence_no = ?
                 LIMIT 1
                 """,
-                (mission_id, sensor_id, sequence_no),
-            ).fetchone() is not None
+                    (mission_id, sensor_id, sequence_no),
+                ).fetchone()
+                is not None
+            )
             aggregate = connection.execute(
                 """
                 SELECT MAX(sequence_no) AS max_sequence
@@ -1668,18 +1841,24 @@ class OmipRepository:
         self, mission_id: str, vehicle_id: str, message_id: str, sequence_no: int
     ) -> dict[str, Any]:
         with self._connect() as connection:
-            message_exists = connection.execute(
-                "SELECT 1 FROM telemetry WHERE message_id = ? LIMIT 1",
-                (message_id,),
-            ).fetchone() is not None
-            sequence_exists = connection.execute(
-                """
+            message_exists = (
+                connection.execute(
+                    "SELECT 1 FROM telemetry WHERE message_id = ? LIMIT 1",
+                    (message_id,),
+                ).fetchone()
+                is not None
+            )
+            sequence_exists = (
+                connection.execute(
+                    """
                 SELECT 1 FROM telemetry
                 WHERE mission_id = ? AND vehicle_id = ? AND sequence_no = ?
                 LIMIT 1
                 """,
-                (mission_id, vehicle_id, sequence_no),
-            ).fetchone() is not None
+                    (mission_id, vehicle_id, sequence_no),
+                ).fetchone()
+                is not None
+            )
             aggregate = connection.execute(
                 """
                 SELECT MAX(sequence_no) AS max_sequence
@@ -1730,10 +1909,18 @@ class OmipRepository:
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
-                        integrity_event_id, finding.dedup_key, finding.stream_kind,
-                        finding.check_type, finding.severity, finding.vehicle_id,
-                        finding.sensor_id, finding.mission_id, finding.message_id,
-                        finding.sequence_no, now, finding.description,
+                        integrity_event_id,
+                        finding.dedup_key,
+                        finding.stream_kind,
+                        finding.check_type,
+                        finding.severity,
+                        finding.vehicle_id,
+                        finding.sensor_id,
+                        finding.mission_id,
+                        finding.message_id,
+                        finding.sequence_no,
+                        now,
+                        finding.description,
                         json.dumps(finding.details, separators=(",", ":")),
                     ),
                 )
@@ -1769,10 +1956,18 @@ class OmipRepository:
                         ) VALUES (?, ?, ?, ?, ?, 'OPEN', ?, ?, ?, ?, ?, ?, ?, 1, ?)
                         """,
                         (
-                            alert_id, finding.alert_active_key, integrity_event_id,
-                            finding.alert_type, finding.severity, finding.vehicle_id,
-                            finding.sensor_id, finding.mission_id, finding.alert_title,
-                            finding.description, now, now,
+                            alert_id,
+                            finding.alert_active_key,
+                            integrity_event_id,
+                            finding.alert_type,
+                            finding.severity,
+                            finding.vehicle_id,
+                            finding.sensor_id,
+                            finding.mission_id,
+                            finding.alert_title,
+                            finding.description,
+                            now,
+                            now,
                             json.dumps(alert_metadata, separators=(",", ":")),
                         ),
                     )
@@ -1782,7 +1977,8 @@ class OmipRepository:
                     severity_order = {"INFO": 0, "WARNING": 1, "CRITICAL": 2}
                     severity = (
                         finding.severity
-                        if severity_order.get(finding.severity, 0) > severity_order.get(current_severity, 0)
+                        if severity_order.get(finding.severity, 0)
+                        > severity_order.get(current_severity, 0)
                         else current_severity
                     )
                     connection.execute(
@@ -1794,8 +1990,13 @@ class OmipRepository:
                         WHERE alert_id = ?
                         """,
                         (
-                            integrity_event_id, severity, finding.alert_title, finding.description,
-                            now, json.dumps(alert_metadata, separators=(",", ":")), alert_id,
+                            integrity_event_id,
+                            severity,
+                            finding.alert_title,
+                            finding.description,
+                            now,
+                            json.dumps(alert_metadata, separators=(",", ":")),
+                            alert_id,
                         ),
                     )
                 touched_alert_ids.append(alert_id)
@@ -1946,10 +2147,14 @@ class OmipRepository:
         missing_messages = 0
         for row in event_rows:
             check_type = str(row["check_type"])
-            check_counts[check_type] = check_counts.get(check_type, 0) + int(row["event_count"])
+            check_counts[check_type] = check_counts.get(check_type, 0) + int(
+                row["event_count"]
+            )
             if check_type == "SEQUENCE_GAP":
                 details = self._load_json(str(row["details_json"]))
-                missing_messages += int(details.get("missing_count", 0) or 0) * int(row["event_count"])
+                missing_messages += int(details.get("missing_count", 0) or 0) * int(
+                    row["event_count"]
+                )
 
         open_critical = 0
         open_warning = 0
@@ -1978,8 +2183,12 @@ class OmipRepository:
             "mission_id": mission_id,
             "missions": mission_values,
             "health_status": health,
-            "expected_rate_hz": round(float(expected_rate), 4) if expected_rate is not None else None,
-            "actual_rate_hz": round(actual_rate, 4) if actual_rate is not None else None,
+            "expected_rate_hz": (
+                round(float(expected_rate), 4) if expected_rate is not None else None
+            ),
+            "actual_rate_hz": (
+                round(actual_rate, 4) if actual_rate is not None else None
+            ),
             "rate_ratio": (
                 round(actual_rate / float(expected_rate), 4)
                 if actual_rate is not None and expected_rate not in (None, 0)
@@ -1996,12 +2205,18 @@ class OmipRepository:
             "high_latency_events": check_counts.get("HIGH_LATENCY", 0),
             "clock_drift_events": check_counts.get("CLOCK_DRIFT", 0),
             "invalid_messages": sum(1 for row in rows if not bool(row["valid"])),
-            "average_latency_ms": round(sum(latencies) / len(latencies), 3) if latencies else None,
+            "average_latency_ms": (
+                round(sum(latencies) / len(latencies), 3) if latencies else None
+            ),
             "p50_latency_ms": (
-                round(value, 3) if (value := self._percentile(latencies, 0.50)) is not None else None
+                round(value, 3)
+                if (value := self._percentile(latencies, 0.50)) is not None
+                else None
             ),
             "p95_latency_ms": (
-                round(value, 3) if (value := self._percentile(latencies, 0.95)) is not None else None
+                round(value, 3)
+                if (value := self._percentile(latencies, 0.95)) is not None
+                else None
             ),
             "maximum_latency_ms": round(max(latencies), 3) if latencies else None,
             "duration_s": round(duration_s, 3) if duration_s is not None else None,
@@ -2024,7 +2239,11 @@ class OmipRepository:
         sensors = [
             metric
             for row in rows
-            if (metric := self.sensor_integrity_metrics(str(row["sensor_id"]), mission_id))
+            if (
+                metric := self.sensor_integrity_metrics(
+                    str(row["sensor_id"]), mission_id
+                )
+            )
             is not None
         ]
         total_received = sum(int(item["received_messages"]) for item in sensors)
@@ -2041,17 +2260,29 @@ class OmipRepository:
             "summary": {
                 "received_messages": total_received,
                 "missing_messages": total_missing,
-                "duplicate_messages": sum(int(item["duplicate_messages"]) for item in sensors),
-                "out_of_order_messages": sum(int(item["out_of_order_messages"]) for item in sensors),
-                "invalid_messages": sum(int(item["invalid_messages"]) for item in sensors),
+                "duplicate_messages": sum(
+                    int(item["duplicate_messages"]) for item in sensors
+                ),
+                "out_of_order_messages": sum(
+                    int(item["out_of_order_messages"]) for item in sensors
+                ),
+                "invalid_messages": sum(
+                    int(item["invalid_messages"]) for item in sensors
+                ),
                 "average_latency_ms": (
                     round(weighted_latency_numerator / total_received, 3)
                     if total_received
                     else None
                 ),
-                "critical_sensors": sum(1 for item in sensors if item["health_status"] == "CRITICAL"),
-                "warning_sensors": sum(1 for item in sensors if item["health_status"] == "WARNING"),
-                "healthy_sensors": sum(1 for item in sensors if item["health_status"] == "HEALTHY"),
+                "critical_sensors": sum(
+                    1 for item in sensors if item["health_status"] == "CRITICAL"
+                ),
+                "warning_sensors": sum(
+                    1 for item in sensors if item["health_status"] == "WARNING"
+                ),
+                "healthy_sensors": sum(
+                    1 for item in sensors if item["health_status"] == "HEALTHY"
+                ),
             },
         }
 
@@ -2064,15 +2295,21 @@ class OmipRepository:
         return self._decode_integrity_event(row) if row else None
 
     def list_integrity_events(
-        self, vehicle_id: str | None = None, sensor_id: str | None = None,
-        mission_id: str | None = None, check_type: str | None = None,
-        severity: str | None = None, limit: int = 1000,
+        self,
+        vehicle_id: str | None = None,
+        sensor_id: str | None = None,
+        mission_id: str | None = None,
+        check_type: str | None = None,
+        severity: str | None = None,
+        limit: int = 1000,
     ) -> list[dict[str, Any]]:
         where: list[str] = []
         params: list[Any] = []
         for column, value in (
-            ("vehicle_id", vehicle_id), ("sensor_id", sensor_id),
-            ("mission_id", mission_id), ("check_type", check_type),
+            ("vehicle_id", vehicle_id),
+            ("sensor_id", sensor_id),
+            ("mission_id", mission_id),
+            ("check_type", check_type),
             ("severity", severity),
         ):
             if value:
@@ -2122,9 +2359,15 @@ class OmipRepository:
         return {
             "mission_id": mission_id,
             "integrity_event_count": int(total),
-            "by_check_type": {str(row["check_type"]): int(row["count"]) for row in event_rows},
-            "by_severity": {str(row["severity"]): int(row["count"]) for row in severity_rows},
-            "alerts_by_status": {str(row["status"]): int(row["count"]) for row in alert_rows},
+            "by_check_type": {
+                str(row["check_type"]): int(row["count"]) for row in event_rows
+            },
+            "by_severity": {
+                str(row["severity"]): int(row["count"]) for row in severity_rows
+            },
+            "alerts_by_status": {
+                str(row["status"]): int(row["count"]) for row in alert_rows
+            },
         }
 
     def get_alert(self, alert_id: str) -> dict[str, Any] | None:
@@ -2135,16 +2378,24 @@ class OmipRepository:
         return self._decode_alert(row) if row else None
 
     def list_alerts(
-        self, status: str | None = None, severity: str | None = None,
-        vehicle_id: str | None = None, sensor_id: str | None = None,
-        mission_id: str | None = None, alert_type: str | None = None,
+        self,
+        status: str | None = None,
+        severity: str | None = None,
+        vehicle_id: str | None = None,
+        sensor_id: str | None = None,
+        mission_id: str | None = None,
+        alert_type: str | None = None,
         limit: int = 500,
     ) -> list[dict[str, Any]]:
         where: list[str] = []
         params: list[Any] = []
         for column, value in (
-            ("status", status), ("severity", severity), ("vehicle_id", vehicle_id),
-            ("sensor_id", sensor_id), ("mission_id", mission_id), ("alert_type", alert_type),
+            ("status", status),
+            ("severity", severity),
+            ("vehicle_id", vehicle_id),
+            ("sensor_id", sensor_id),
+            ("mission_id", mission_id),
+            ("alert_type", alert_type),
         ):
             if value:
                 where.append(f"{column} = ?")
@@ -2162,7 +2413,9 @@ class OmipRepository:
             ).fetchall()
         return [self._decode_alert(row) for row in rows]
 
-    def acknowledge_alert(self, alert_id: str, actor: str, note: str = "") -> dict[str, Any] | None:
+    def acknowledge_alert(
+        self, alert_id: str, actor: str, note: str = ""
+    ) -> dict[str, Any] | None:
         current = self.get_alert(alert_id)
         if current is None:
             return None
@@ -2179,7 +2432,9 @@ class OmipRepository:
             )
         return self.get_alert(alert_id)
 
-    def resolve_alert(self, alert_id: str, actor: str, note: str = "") -> dict[str, Any] | None:
+    def resolve_alert(
+        self, alert_id: str, actor: str, note: str = ""
+    ) -> dict[str, Any] | None:
         current = self.get_alert(alert_id)
         if current is None:
             return None
@@ -2195,7 +2450,13 @@ class OmipRepository:
                     operator_note = ?
                 WHERE alert_id = ?
                 """,
-                (now, actor, note or "Manually resolved by an operator.", note, alert_id),
+                (
+                    now,
+                    actor,
+                    note or "Manually resolved by an operator.",
+                    note,
+                    alert_id,
+                ),
             )
         return self.get_alert(alert_id)
 
@@ -2234,7 +2495,9 @@ class OmipRepository:
         timestamp_utc: datetime | None = None,
     ) -> dict[str, Any]:
         log_id = self._generated_id("LOG")
-        timestamp = (timestamp_utc or self._utc_now()).astimezone(timezone.utc).isoformat()
+        timestamp = (
+            (timestamp_utc or self._utc_now()).astimezone(timezone.utc).isoformat()
+        )
         with self._lock, self._connect() as connection:
             connection.execute(
                 """
@@ -2244,8 +2507,15 @@ class OmipRepository:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    log_id, timestamp, level, component, event_type, message,
-                    vehicle_id, sensor_id, mission_id,
+                    log_id,
+                    timestamp,
+                    level,
+                    component,
+                    event_type,
+                    message,
+                    vehicle_id,
+                    sensor_id,
+                    mission_id,
                     json.dumps(details or {}, separators=(",", ":")),
                 ),
             )
@@ -2277,8 +2547,12 @@ class OmipRepository:
         where: list[str] = []
         params: list[Any] = []
         for column, value in (
-            ("level", level), ("component", component), ("event_type", event_type),
-            ("vehicle_id", vehicle_id), ("sensor_id", sensor_id), ("mission_id", mission_id),
+            ("level", level),
+            ("component", component),
+            ("event_type", event_type),
+            ("vehicle_id", vehicle_id),
+            ("sensor_id", sensor_id),
+            ("mission_id", mission_id),
         ):
             if value:
                 where.append(f"{column} = ?")
@@ -2322,23 +2596,44 @@ class OmipRepository:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    snapshot_id, timestamp, snapshot.get("overall_status", "UNKNOWN"),
+                    snapshot_id,
+                    timestamp,
+                    snapshot.get("overall_status", "UNKNOWN"),
                     float(snapshot.get("uptime_seconds", 0.0)),
-                    float(rates.get("raw_messages_received", {}).get("one_minute_per_second", 0.0)),
-                    float(rates.get("telemetry_frames_received", {}).get("one_minute_per_second", 0.0)),
-                    float(rates.get("http_messages_received", {}).get("one_minute_per_second", 0.0)),
-                    float(rates.get("mqtt_messages_received", {}).get("one_minute_per_second", 0.0)),
+                    float(
+                        rates.get("raw_messages_received", {}).get(
+                            "one_minute_per_second", 0.0
+                        )
+                    ),
+                    float(
+                        rates.get("telemetry_frames_received", {}).get(
+                            "one_minute_per_second", 0.0
+                        )
+                    ),
+                    float(
+                        rates.get("http_messages_received", {}).get(
+                            "one_minute_per_second", 0.0
+                        )
+                    ),
+                    float(
+                        rates.get("mqtt_messages_received", {}).get(
+                            "one_minute_per_second", 0.0
+                        )
+                    ),
                     database.get("write_latency_average_ms"),
                     database.get("query_latency_average_ms"),
                     int(operations.get("websocket_clients", 0)),
-                    process.get("memory_usage_mb"), process.get("cpu_percent"),
-                    int(operations.get("open_data_alerts", 0)) + int(operations.get("open_platform_alerts", 0)),
+                    process.get("memory_usage_mb"),
+                    process.get("cpu_percent"),
+                    int(operations.get("open_data_alerts", 0))
+                    + int(operations.get("open_platform_alerts", 0)),
                     json.dumps(snapshot, separators=(",", ":")),
                 ),
             )
         with self._connect() as connection:
             row = connection.execute(
-                "SELECT * FROM system_metric_snapshots WHERE snapshot_id = ?", (snapshot_id,)
+                "SELECT * FROM system_metric_snapshots WHERE snapshot_id = ?",
+                (snapshot_id,),
             ).fetchone()
         if row is None:
             raise RuntimeError("System metric snapshot was not created")
@@ -2382,8 +2677,10 @@ class OmipRepository:
         where: list[str] = []
         params: list[Any] = []
         for column, value in (
-            ("status", status), ("severity", severity),
-            ("component", component), ("alert_type", alert_type),
+            ("status", status),
+            ("severity", severity),
+            ("component", component),
+            ("alert_type", alert_type),
         ):
             if value:
                 where.append(f"{column} = ?")
@@ -2415,7 +2712,8 @@ class OmipRepository:
         now = self._utc_now().isoformat()
         with self._lock, self._connect() as connection:
             existing = connection.execute(
-                "SELECT alert_id FROM platform_alerts WHERE active_key = ?", (active_key,)
+                "SELECT alert_id FROM platform_alerts WHERE active_key = ?",
+                (active_key,),
             ).fetchone()
             if existing:
                 alert_id = str(existing["alert_id"])
@@ -2431,8 +2729,14 @@ class OmipRepository:
                     WHERE alert_id = ?
                     """,
                     (
-                        alert_type, severity, component, title, description, now,
-                        json.dumps(metadata or {}, separators=(",", ":")), alert_id,
+                        alert_type,
+                        severity,
+                        component,
+                        title,
+                        description,
+                        now,
+                        json.dumps(metadata or {}, separators=(",", ":")),
+                        alert_id,
                     ),
                 )
             else:
@@ -2446,8 +2750,15 @@ class OmipRepository:
                     ) VALUES (?, ?, ?, ?, 'OPEN', ?, ?, ?, ?, ?, 1, ?)
                     """,
                     (
-                        alert_id, active_key, alert_type, severity, component,
-                        title, description, now, now,
+                        alert_id,
+                        active_key,
+                        alert_type,
+                        severity,
+                        component,
+                        title,
+                        description,
+                        now,
+                        now,
                         json.dumps(metadata or {}, separators=(",", ":")),
                     ),
                 )
@@ -2498,17 +2809,28 @@ class OmipRepository:
                     resolution_reason = ?, operator_note = ? WHERE alert_id = ?
                 """,
                 (
-                    now, actor, source,
-                    note or ("Automatically resolved after component recovery." if source == "AUTOMATIC" else "Manually resolved by an operator."),
-                    note, alert_id,
+                    now,
+                    actor,
+                    source,
+                    note
+                    or (
+                        "Automatically resolved after component recovery."
+                        if source == "AUTOMATIC"
+                        else "Manually resolved by an operator."
+                    ),
+                    note,
+                    alert_id,
                 ),
             )
         return self.get_platform_alert(alert_id)
 
-    def auto_resolve_platform_alert(self, active_key: str, reason: str) -> dict[str, Any] | None:
+    def auto_resolve_platform_alert(
+        self, active_key: str, reason: str
+    ) -> dict[str, Any] | None:
         with self._connect() as connection:
             row = connection.execute(
-                "SELECT alert_id FROM platform_alerts WHERE active_key = ?", (active_key,)
+                "SELECT alert_id FROM platform_alerts WHERE active_key = ?",
+                (active_key,),
             ).fetchone()
         if row is None:
             return None
@@ -2523,21 +2845,41 @@ class OmipRepository:
                 connection.execute("SELECT 1").fetchone()
                 integrity = connection.execute("PRAGMA quick_check").fetchone()
                 table_rows = {
-                    table: int(connection.execute(f"SELECT COUNT(*) AS total FROM {table}").fetchone()["total"])
+                    table: int(
+                        connection.execute(
+                            f"SELECT COUNT(*) AS total FROM {table}"
+                        ).fetchone()["total"]
+                    )
                     for table in (
-                        "vehicles", "sensors", "missions", "telemetry",
-                        "raw_sensor_messages", "vehicle_heartbeats", "mission_events",
-                        "integrity_events", "alerts", "application_logs",
-                        "system_metric_snapshots", "platform_alerts",
+                        "vehicles",
+                        "sensors",
+                        "missions",
+                        "telemetry",
+                        "raw_sensor_messages",
+                        "vehicle_heartbeats",
+                        "mission_events",
+                        "integrity_events",
+                        "alerts",
+                        "application_logs",
+                        "system_metric_snapshots",
+                        "platform_alerts",
                     )
                 }
             elapsed_ms = round((time.perf_counter() - started) * 1000.0, 3)
             return {
-                "status": "HEALTHY" if integrity and str(integrity[0]).lower() == "ok" else "UNHEALTHY",
+                "status": (
+                    "HEALTHY"
+                    if integrity and str(integrity[0]).lower() == "ok"
+                    else "UNHEALTHY"
+                ),
                 "message": "SQLite database is available",
                 "response_time_ms": elapsed_ms,
                 "database_path": str(self._database_path),
-                "database_size_bytes": self._database_path.stat().st_size if self._database_path.exists() else 0,
+                "database_size_bytes": (
+                    self._database_path.stat().st_size
+                    if self._database_path.exists()
+                    else 0
+                ),
                 "journal_mode": "WAL",
                 "table_rows": table_rows,
             }
@@ -2547,14 +2889,20 @@ class OmipRepository:
                 "message": str(exc),
                 "response_time_ms": round((time.perf_counter() - started) * 1000.0, 3),
                 "database_path": str(self._database_path),
-                "database_size_bytes": self._database_path.stat().st_size if self._database_path.exists() else 0,
+                "database_size_bytes": (
+                    self._database_path.stat().st_size
+                    if self._database_path.exists()
+                    else 0
+                ),
                 "table_rows": {},
             }
 
     # ------------------------------------------------------------------
     # Mission events
     # ------------------------------------------------------------------
-    def create_event(self, mission_id: str, request: MissionEventCreate) -> dict[str, Any]:
+    def create_event(
+        self, mission_id: str, request: MissionEventCreate
+    ) -> dict[str, Any]:
         mission = self.get_mission(mission_id)
         if mission is None:
             raise LookupError("Mission not found")
@@ -2572,11 +2920,22 @@ class OmipRepository:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    event_id, mission_id, request.vehicle_id, request.event_type,
+                    event_id,
+                    mission_id,
+                    request.vehicle_id,
+                    request.event_type,
                     request.start_timestamp_utc.isoformat(),
-                    request.end_timestamp_utc.isoformat() if request.end_timestamp_utc else None,
-                    request.severity, request.source, request.description,
-                    json.dumps(request.metadata, separators=(",", ":")), now, now,
+                    (
+                        request.end_timestamp_utc.isoformat()
+                        if request.end_timestamp_utc
+                        else None
+                    ),
+                    request.severity,
+                    request.source,
+                    request.description,
+                    json.dumps(request.metadata, separators=(",", ":")),
+                    now,
+                    now,
                 ),
             )
         event = self.get_event(event_id)
@@ -2602,7 +2961,9 @@ class OmipRepository:
             ).fetchall()
         return [self._decode_event(row) for row in rows]
 
-    def update_event(self, event_id: str, request: MissionEventUpdate) -> dict[str, Any] | None:
+    def update_event(
+        self, event_id: str, request: MissionEventUpdate
+    ) -> dict[str, Any] | None:
         current = self.get_event(event_id)
         if current is None:
             return None
@@ -2616,7 +2977,9 @@ class OmipRepository:
         if "end_timestamp_utc" not in updates and current["end_timestamp_utc"]:
             end = datetime.fromisoformat(current["end_timestamp_utc"])
         if end and end < start:
-            raise ValueError("end_timestamp_utc cannot be earlier than start_timestamp_utc")
+            raise ValueError(
+                "end_timestamp_utc cannot be earlier than start_timestamp_utc"
+            )
         mapping = {
             "event_type": "event_type",
             "start_timestamp_utc": "start_timestamp_utc",

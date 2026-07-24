@@ -3,12 +3,11 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
-from fastapi.testclient import TestClient
-
 from app import main
 from app.database import OmipRepository
 from app.normalizer import RawMessageNormalizer
 from app.system_monitoring import RuntimeMetricsService
+from fastapi.testclient import TestClient
 
 
 def test_system_monitoring_health_logs_and_snapshots(tmp_path: Path) -> None:

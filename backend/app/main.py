@@ -14,82 +14,47 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Literal
 
-from fastapi import FastAPI, HTTPException, Query, Response, WebSocket, WebSocketDisconnect
+from fastapi import (FastAPI, HTTPException, Query, Response, WebSocket,
+                     WebSocketDisconnect)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import ValidationError
 
-from .config import (
-    DATABASE_PATH,
-    DEGRADED_THRESHOLD_S,
-    MQTT_ENABLED,
-    MQTT_HEARTBEAT_TOPIC,
-    MQTT_HOST,
-    MQTT_PORT,
-    MQTT_TELEMETRY_TOPIC,
-    MQTT_TOPIC,
-    ONLINE_THRESHOLD_S,
-    SCENARIOS_DIR,
-    STATIC_DIR,
-    PROJECT_DIR,
-    PUBLIC_API_BASE,
-    EXPORT_DIR,
-    BACKUP_DIR,
-    SYSTEM_INGESTION_REJECTION_WARNING_RATIO,
-    SYSTEM_MEMORY_WARNING_MB,
-    SYSTEM_SNAPSHOT_INTERVAL_S,
-    SYSTEM_SNAPSHOT_RETENTION_DAYS,
-)
+from .config import (BACKUP_DIR, DATABASE_PATH, DEGRADED_THRESHOLD_S,
+                     EXPORT_DIR, MQTT_ENABLED, MQTT_HEARTBEAT_TOPIC, MQTT_HOST,
+                     MQTT_PORT, MQTT_TELEMETRY_TOPIC, MQTT_TOPIC,
+                     ONLINE_THRESHOLD_S, PROJECT_DIR, PUBLIC_API_BASE,
+                     SCENARIOS_DIR, STATIC_DIR,
+                     SYSTEM_INGESTION_REJECTION_WARNING_RATIO,
+                     SYSTEM_MEMORY_WARNING_MB, SYSTEM_SNAPSHOT_INTERVAL_S,
+                     SYSTEM_SNAPSHOT_RETENTION_DAYS)
 from .database import OmipRepository
+from .environment_context import EnvironmentContextService
 from .integrity_service import DataIntegrityService
 from .mqtt_bridge import MqttRuntimeManager
 from .normalizer import RawMessageNormalizer
-from .system_monitoring import RuntimeMetricsService, SystemHealthService
-from .storage_management import StorageManager, build_export_content
-from .simulation_runs import SimulationRunManager
-from .environment_context import EnvironmentContextService
 from .obstacle_interaction import ObstacleInteractionService
 from .safety_analytics import SafetyAnalyticsService
-from .vehicle_profiles import (
-    BUILT_IN_PROFILES, VEHICLE_PARAMETER_DEFINITIONS, deep_merge, validate_parameters, vehicle_type_catalogue,
-)
-from .schemas import (
-    AlertActionRequest,
-    AlertStatus,
-    AlertType,
-    EventSeverity,
-    IntegrityCheckType,
-    MissionCreate,
-    MqttControlRequest,
-    MissionEventCreate,
-    MissionEventUpdate,
-    MissionStatus,
-    RawMessageType,
-    RawSensorMessage,
-    SensorCreate,
-    SensorUpdate,
-    TelemetryFrame,
-    VehicleCreate,
-    VehicleHeartbeat,
-    VehicleUpdate,
-    RetentionPolicyUpdate,
-    CleanupExecuteRequest,
-    ExportJobCreate,
-    BackupCreateRequest,
-    VehicleProfileCreate,
-    VehicleProfileUpdate,
-    SimulationRunCreate,
-    SimulationRunStopRequest,
-    ScenarioCreate,
-    ScenarioUpdate,
-    ObstacleCreate,
-    ObstacleUpdate,
-    EnvironmentConstraintCreate,
-    EnvironmentConstraintUpdate,
-    ExternalFieldCreate,
-    ExternalFieldUpdate,
-    MissionEnvironmentCapture,
-)
+from .schemas import (AlertActionRequest, AlertStatus, AlertType,
+                      BackupCreateRequest, CleanupExecuteRequest,
+                      EnvironmentConstraintCreate, EnvironmentConstraintUpdate,
+                      EventSeverity, ExportJobCreate, ExternalFieldCreate,
+                      ExternalFieldUpdate, IntegrityCheckType, MissionCreate,
+                      MissionEnvironmentCapture, MissionEventCreate,
+                      MissionEventUpdate, MissionStatus, MqttControlRequest,
+                      ObstacleCreate, ObstacleUpdate, RawMessageType,
+                      RawSensorMessage, RetentionPolicyUpdate, ScenarioCreate,
+                      ScenarioUpdate, SensorCreate, SensorUpdate,
+                      SimulationRunCreate, SimulationRunStopRequest,
+                      TelemetryFrame, VehicleCreate, VehicleHeartbeat,
+                      VehicleProfileCreate, VehicleProfileUpdate,
+                      VehicleUpdate)
+from .simulation_runs import SimulationRunManager
+from .storage_management import StorageManager, build_export_content
+from .system_monitoring import RuntimeMetricsService, SystemHealthService
+from .vehicle_profiles import (BUILT_IN_PROFILES,
+                               VEHICLE_PARAMETER_DEFINITIONS, deep_merge,
+                               validate_parameters, vehicle_type_catalogue)
 
 logger = logging.getLogger(__name__)
 
@@ -111,14 +76,20 @@ def _storage_manager() -> StorageManager:
     global _storage_manager_cache
     database_key = str(repository._database_path)
     if _storage_manager_cache is None or _storage_manager_cache[0] != database_key:
-        _storage_manager_cache = (database_key, StorageManager(repository, EXPORT_DIR, BACKUP_DIR))
+        _storage_manager_cache = (
+            database_key,
+            StorageManager(repository, EXPORT_DIR, BACKUP_DIR),
+        )
     return _storage_manager_cache[1]
 
 
 def _simulation_manager() -> SimulationRunManager:
     global _simulation_manager_cache
     repository_key = str(repository._database_path)
-    if _simulation_manager_cache is None or _simulation_manager_cache[0] != repository_key:
+    if (
+        _simulation_manager_cache is None
+        or _simulation_manager_cache[0] != repository_key
+    ):
         _simulation_manager_cache = (
             repository_key,
             SimulationRunManager(repository, PROJECT_DIR, api_base=PUBLIC_API_BASE),
@@ -129,7 +100,10 @@ def _simulation_manager() -> SimulationRunManager:
 def _environment_context() -> EnvironmentContextService:
     global _environment_context_cache
     repository_key = str(repository._database_path)
-    if _environment_context_cache is None or _environment_context_cache[0] != repository_key:
+    if (
+        _environment_context_cache is None
+        or _environment_context_cache[0] != repository_key
+    ):
         _environment_context_cache = (
             repository_key,
             EnvironmentContextService(repository, SCENARIOS_DIR),
@@ -140,7 +114,10 @@ def _environment_context() -> EnvironmentContextService:
 def _obstacle_interaction_service() -> ObstacleInteractionService:
     global _obstacle_interaction_cache
     repository_key = str(repository._database_path)
-    if _obstacle_interaction_cache is None or _obstacle_interaction_cache[0] != repository_key:
+    if (
+        _obstacle_interaction_cache is None
+        or _obstacle_interaction_cache[0] != repository_key
+    ):
         _obstacle_interaction_cache = (
             repository_key,
             ObstacleInteractionService(repository, _environment_context()),
@@ -154,7 +131,9 @@ def _safety_analytics_service() -> SafetyAnalyticsService:
     if _safety_analytics_cache is None or _safety_analytics_cache[0] != repository_key:
         _safety_analytics_cache = (
             repository_key,
-            SafetyAnalyticsService(repository, _environment_context(), _obstacle_interaction_service()),
+            SafetyAnalyticsService(
+                repository, _environment_context(), _obstacle_interaction_service()
+            ),
         )
     return _safety_analytics_cache[1]
 
@@ -162,20 +141,23 @@ def _safety_analytics_service() -> SafetyAnalyticsService:
 def _seed_vehicle_profiles() -> None:
     repository.seed_vehicle_parameter_definitions(VEHICLE_PARAMETER_DEFINITIONS)
     for item in BUILT_IN_PROFILES:
-        repository.upsert_vehicle_profile(VehicleProfileCreate.model_validate(item), built_in=True)
+        repository.upsert_vehicle_profile(
+            VehicleProfileCreate.model_validate(item), built_in=True
+        )
 
 
 def _run_export_job(job_id: str, mission_id: str, export_format: str) -> None:
     manager = _storage_manager()
     try:
         manager.mark_export_running(job_id)
-        content, file_name, media_type = build_export_content(repository, mission_id, export_format)
+        content, file_name, media_type = build_export_content(
+            repository, mission_id, export_format
+        )
         output = manager.export_dir / f"{job_id}-{file_name}"
         output.write_bytes(content)
         manager.complete_export_job(job_id, output, {"media_type": media_type})
     except Exception as exc:
         manager.fail_export_job(job_id, str(exc))
-
 
 
 class ConnectionManager:
@@ -225,7 +207,11 @@ mqtt_runtime = MqttRuntimeManager(
 def _system_health_service() -> SystemHealthService:
     # The repository is replaced by tests, so create the service lazily.
     return SystemHealthService(
-        repository, runtime_metrics, mqtt_runtime, telemetry_connections, stream_connections,
+        repository,
+        runtime_metrics,
+        mqtt_runtime,
+        telemetry_connections,
+        stream_connections,
         memory_warning_mb=SYSTEM_MEMORY_WARNING_MB,
         rejection_warning_ratio=SYSTEM_INGESTION_REJECTION_WARNING_RATIO,
     )
@@ -244,11 +230,18 @@ async def _application_log(
 ) -> dict[str, Any] | None:
     try:
         record = repository.create_application_log(
-            level=level, component=component, event_type=event_type, message=message,
-            vehicle_id=vehicle_id, sensor_id=sensor_id, mission_id=mission_id,
+            level=level,
+            component=component,
+            event_type=event_type,
+            message=message,
+            vehicle_id=vehicle_id,
+            sensor_id=sensor_id,
+            mission_id=mission_id,
             details=details or {},
         )
-        await stream_connections.broadcast({"stream_type": "application_log", "data": record})
+        await stream_connections.broadcast(
+            {"stream_type": "application_log", "data": record}
+        )
         return record
     except Exception as exc:  # Logging must never break ingestion.
         logger.warning("Could not persist application log: %s", exc)
@@ -264,7 +257,9 @@ PLATFORM_CONDITIONS = {
 }
 
 
-async def _evaluate_platform_health(health: dict[str, Any] | None = None) -> dict[str, Any]:
+async def _evaluate_platform_health(
+    health: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     health = health or _system_health_service().health()
     components = health.get("components", {})
     active: dict[str, dict[str, str]] = {}
@@ -274,7 +269,9 @@ async def _evaluate_platform_health(health: dict[str, Any] | None = None) -> dic
         should_alert = status in {"DEGRADED", "UNHEALTHY"}
         # Disabled MQTT is an intentional UNKNOWN state, not a fault.
         if key == "mqtt-disconnected":
-            should_alert = bool(component.get("enabled")) and not bool(component.get("connected"))
+            should_alert = bool(component.get("enabled")) and not bool(
+                component.get("connected")
+            )
         if should_alert:
             severity = "CRITICAL" if status == "UNHEALTHY" else "WARNING"
             active[key] = {
@@ -282,12 +279,18 @@ async def _evaluate_platform_health(health: dict[str, Any] | None = None) -> dic
                 "severity": severity,
                 "component": component_name,
                 "title": alert_type.replace("_", " ").title(),
-                "description": str(component.get("message", f"{component_name} is {status}")),
+                "description": str(
+                    component.get("message", f"{component_name} is {status}")
+                ),
             }
 
     for key, data in active.items():
-        alert = repository.upsert_platform_alert(active_key=key, metadata=components.get(data["component"], {}), **data)
-        await stream_connections.broadcast({"stream_type": "platform_alert", "data": alert})
+        alert = repository.upsert_platform_alert(
+            active_key=key, metadata=components.get(data["component"], {}), **data
+        )
+        await stream_connections.broadcast(
+            {"stream_type": "platform_alert", "data": alert}
+        )
 
     for key in PLATFORM_CONDITIONS:
         if key not in active:
@@ -295,7 +298,9 @@ async def _evaluate_platform_health(health: dict[str, Any] | None = None) -> dic
                 key, "Component returned to a healthy operating state."
             )
             if resolved:
-                await stream_connections.broadcast({"stream_type": "platform_alert", "data": resolved})
+                await stream_connections.broadcast(
+                    {"stream_type": "platform_alert", "data": resolved}
+                )
     return health
 
 
@@ -304,9 +309,12 @@ async def _system_monitor_loop() -> None:
         try:
             health = await _evaluate_platform_health()
             snapshot = repository.create_system_metric_snapshot(health)
-            await stream_connections.broadcast({"stream_type": "system_metric", "data": snapshot})
+            await stream_connections.broadcast(
+                {"stream_type": "system_metric", "data": snapshot}
+            )
             repository.purge_system_metric_snapshots(
-                datetime.now(timezone.utc) - timedelta(days=SYSTEM_SNAPSHOT_RETENTION_DAYS)
+                datetime.now(timezone.utc)
+                - timedelta(days=SYSTEM_SNAPSHOT_RETENTION_DAYS)
             )
         except asyncio.CancelledError:
             raise
@@ -314,8 +322,11 @@ async def _system_monitor_loop() -> None:
             logger.exception("System monitoring cycle failed")
             runtime_metrics.increment("system_monitor_failures")
             await _application_log(
-                "ERROR", "SYSTEM", "MONITORING_CYCLE_FAILURE",
-                "System monitoring cycle failed.", details={"error": str(exc)},
+                "ERROR",
+                "SYSTEM",
+                "MONITORING_CYCLE_FAILURE",
+                "System monitoring cycle failed.",
+                details={"error": str(exc)},
             )
         await asyncio.sleep(SYSTEM_SNAPSHOT_INTERVAL_S)
 
@@ -328,7 +339,9 @@ def _integrity_service() -> DataIntegrityService:
 async def _record_integrity(findings: list[Any]) -> dict[str, list[dict[str, Any]]]:
     recorded = repository.record_integrity_findings(findings)
     for event in recorded["integrity_events"]:
-        await stream_connections.broadcast({"stream_type": "integrity_event", "data": event})
+        await stream_connections.broadcast(
+            {"stream_type": "integrity_event", "data": event}
+        )
     for alert in recorded["alerts"]:
         await stream_connections.broadcast({"stream_type": "alert", "data": alert})
     return recorded
@@ -357,14 +370,20 @@ async def _store_telemetry(frame: TelemetryFrame) -> dict[str, Any]:
         try:
             return repository.insert_telemetry(frame)
         finally:
-            runtime_metrics.record_database_write((time.perf_counter() - started) * 1000.0, success=False)
+            runtime_metrics.record_database_write(
+                (time.perf_counter() - started) * 1000.0, success=False
+            )
 
     started = time.perf_counter()
     try:
         stored = repository.insert_telemetry(frame)
-        runtime_metrics.record_database_write((time.perf_counter() - started) * 1000.0, success=True)
+        runtime_metrics.record_database_write(
+            (time.perf_counter() - started) * 1000.0, success=True
+        )
     except Exception:
-        runtime_metrics.record_database_write((time.perf_counter() - started) * 1000.0, success=False)
+        runtime_metrics.record_database_write(
+            (time.perf_counter() - started) * 1000.0, success=False
+        )
         raise
     await _record_integrity(findings)
     resolved = repository.auto_resolve_recovered_alerts(
@@ -378,23 +397,36 @@ async def _store_telemetry(frame: TelemetryFrame) -> dict[str, Any]:
     try:
         interaction = _obstacle_interaction_service().analyse(stored)
     except Exception as exc:
-        logger.warning("Obstacle interaction analysis failed for %s: %s", frame.message_id, exc)
+        logger.warning(
+            "Obstacle interaction analysis failed for %s: %s", frame.message_id, exc
+        )
         await _application_log(
-            "WARNING", "OBSTACLE_INTERACTION", "ANALYSIS_FAILURE",
+            "WARNING",
+            "OBSTACLE_INTERACTION",
+            "ANALYSIS_FAILURE",
             "Obstacle interaction analysis failed.",
-            vehicle_id=frame.vehicle_id, mission_id=frame.mission_id,
+            vehicle_id=frame.vehicle_id,
+            mission_id=frame.mission_id,
             details={"message_id": str(frame.message_id), "error": str(exc)},
         )
     if interaction is not None:
-        await stream_connections.broadcast({"stream_type": "obstacle_interaction", "data": interaction})
+        await stream_connections.broadcast(
+            {"stream_type": "obstacle_interaction", "data": interaction}
+        )
     try:
         safety_result = _safety_analytics_service().analyse(stored, interaction)
         for violation in safety_result.get("violations", []):
-            await stream_connections.broadcast({"stream_type": "constraint_violation", "data": violation})
+            await stream_connections.broadcast(
+                {"stream_type": "constraint_violation", "data": violation}
+            )
         for violation in safety_result.get("resolved", []):
-            await stream_connections.broadcast({"stream_type": "constraint_violation", "data": violation})
+            await stream_connections.broadcast(
+                {"stream_type": "constraint_violation", "data": violation}
+            )
         if safety_result.get("near_miss"):
-            await stream_connections.broadcast({"stream_type": "near_miss", "data": safety_result["near_miss"]})
+            await stream_connections.broadcast(
+                {"stream_type": "near_miss", "data": safety_result["near_miss"]}
+            )
     except Exception as exc:
         logger.warning("Safety analytics failed for %s: %s", frame.message_id, exc)
     await telemetry_connections.broadcast(stored)
@@ -409,7 +441,9 @@ async def _store_raw(
 ) -> dict[str, Any]:
     runtime_metrics.increment("raw_messages_received", rate_event=True)
     repository.ensure_sensor(message)
-    repository.ensure_mission(message.mission_id, message.vehicle_id, message.timestamp_utc)
+    repository.ensure_mission(
+        message.mission_id, message.vehicle_id, message.timestamp_utc
+    )
     try:
         analysis = _integrity_service().analyse_raw_detailed(message)
     except Exception:
@@ -423,19 +457,31 @@ async def _store_raw(
         await _record_integrity(findings)
         started = time.perf_counter()
         try:
-            duplicate = repository.insert_raw_message(message, transport=transport, topic=topic)
-            runtime_metrics.record_database_write((time.perf_counter() - started) * 1000.0, success=True)
+            duplicate = repository.insert_raw_message(
+                message, transport=transport, topic=topic
+            )
+            runtime_metrics.record_database_write(
+                (time.perf_counter() - started) * 1000.0, success=True
+            )
             return {"raw_message": duplicate, "normalised_telemetry": None}
         except Exception:
-            runtime_metrics.record_database_write((time.perf_counter() - started) * 1000.0, success=False)
+            runtime_metrics.record_database_write(
+                (time.perf_counter() - started) * 1000.0, success=False
+            )
             raise
 
     started = time.perf_counter()
     try:
-        stored_raw = repository.insert_raw_message(message, transport=transport, topic=topic)
-        runtime_metrics.record_database_write((time.perf_counter() - started) * 1000.0, success=True)
+        stored_raw = repository.insert_raw_message(
+            message, transport=transport, topic=topic
+        )
+        runtime_metrics.record_database_write(
+            (time.perf_counter() - started) * 1000.0, success=True
+        )
     except Exception:
-        runtime_metrics.record_database_write((time.perf_counter() - started) * 1000.0, success=False)
+        runtime_metrics.record_database_write(
+            (time.perf_counter() - started) * 1000.0, success=False
+        )
         raise
     await _record_integrity(findings)
     resolved = repository.auto_resolve_recovered_alerts(
@@ -445,7 +491,9 @@ async def _store_raw(
         active_types=analysis.active_recoverable_types,
     )
     await _broadcast_resolved_alerts(resolved)
-    await stream_connections.broadcast({"stream_type": "raw_sensor", "data": stored_raw})
+    await stream_connections.broadcast(
+        {"stream_type": "raw_sensor", "data": stored_raw}
+    )
     normalised = normalizer.process(message)
     stored_telemetry: dict[str, Any] | None = None
     if normalised is not None:
@@ -461,9 +509,13 @@ async def _store_heartbeat(
     started = time.perf_counter()
     try:
         stored = repository.insert_heartbeat(heartbeat, transport=transport)
-        runtime_metrics.record_database_write((time.perf_counter() - started) * 1000.0, success=True)
+        runtime_metrics.record_database_write(
+            (time.perf_counter() - started) * 1000.0, success=True
+        )
     except Exception:
-        runtime_metrics.record_database_write((time.perf_counter() - started) * 1000.0, success=False)
+        runtime_metrics.record_database_write(
+            (time.perf_counter() - started) * 1000.0, success=False
+        )
         raise
     await stream_connections.broadcast({"stream_type": "heartbeat", "data": stored})
     return stored
@@ -473,18 +525,25 @@ async def _handle_mqtt(topic: str, payload: dict[str, Any]) -> None:
     runtime_metrics.increment("mqtt_messages_received", rate_event=True)
     try:
         if topic.endswith("/heartbeat"):
-            await _store_heartbeat(VehicleHeartbeat.model_validate(payload), transport="MQTT")
+            await _store_heartbeat(
+                VehicleHeartbeat.model_validate(payload), transport="MQTT"
+            )
         elif topic.endswith("/telemetry"):
             await _store_telemetry(TelemetryFrame.model_validate(payload))
         else:
-            await _store_raw(RawSensorMessage.model_validate(payload), transport="MQTT", topic=topic)
+            await _store_raw(
+                RawSensorMessage.model_validate(payload), transport="MQTT", topic=topic
+            )
         runtime_metrics.increment("messages_accepted", rate_event=True)
     except (ValidationError, sqlite3.IntegrityError, LookupError, ValueError) as exc:
         runtime_metrics.increment("messages_rejected", rate_event=True)
         runtime_metrics.increment("mqtt_ingestion_failures")
         logger.warning("Rejected MQTT message on %s: %s", topic, exc)
         await _application_log(
-            "WARNING", "MQTT", "MESSAGE_REJECTED", "An MQTT message was rejected.",
+            "WARNING",
+            "MQTT",
+            "MESSAGE_REJECTED",
+            "An MQTT message was rejected.",
             details={"topic": topic, "error": str(exc)},
         )
 
@@ -496,7 +555,9 @@ async def lifespan(app: FastAPI):
     _environment_context()
     _obstacle_interaction_service()
     _safety_analytics_service()
-    await _application_log("INFO", "SYSTEM", "SERVICE_START", "OMIP v0.5.2 service started.")
+    await _application_log(
+        "INFO", "SYSTEM", "SERVICE_START", "OMIP v0.5.2 service started."
+    )
     if MQTT_ENABLED:
         status = await mqtt_runtime.enable(
             loop=asyncio.get_running_loop(),
@@ -504,7 +565,9 @@ async def lifespan(app: FastAPI):
         )
         if status.get("last_error"):
             logger.warning("MQTT bridge did not start: %s", status["last_error"])
-    monitor_task = asyncio.create_task(_system_monitor_loop(), name="omip-system-monitor")
+    monitor_task = asyncio.create_task(
+        _system_monitor_loop(), name="omip-system-monitor"
+    )
     try:
         yield
     finally:
@@ -514,7 +577,9 @@ async def lifespan(app: FastAPI):
                 await monitor_task
         await mqtt_runtime.disable()
         _simulation_manager().stop_all()
-        await _application_log("INFO", "SYSTEM", "SERVICE_STOP", "OMIP v0.5.2 service stopped.")
+        await _application_log(
+            "INFO", "SYSTEM", "SERVICE_STOP", "OMIP v0.5.2 service stopped."
+        )
 
 
 app = FastAPI(
@@ -564,7 +629,9 @@ async def ingestion_metrics_middleware(request, call_next):
 
 @app.get("/", include_in_schema=False)
 def dashboard() -> FileResponse:
-    return FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-store"})
+    return FileResponse(
+        STATIC_DIR / "index.html", headers={"Cache-Control": "no-store"}
+    )
 
 
 @app.get("/api/v1/health")
@@ -607,7 +674,9 @@ async def configure_mqtt(request: MqttControlRequest) -> dict[str, Any]:
             telemetry_topic=request.telemetry_topic,
             heartbeat_topic=request.heartbeat_topic,
         )
-    await stream_connections.broadcast({"stream_type": "acquisition_status", "data": {"mqtt": mqtt}})
+    await stream_connections.broadcast(
+        {"stream_type": "acquisition_status", "data": {"mqtt": mqtt}}
+    )
     return {
         "http_ingestion": True,
         "mqtt": mqtt,
@@ -661,9 +730,15 @@ def system_logs(
     limit: int = Query(default=200, ge=1, le=5000),
 ) -> list[dict[str, Any]]:
     return repository.list_application_logs(
-        level=level, component=component, event_type=event_type,
-        vehicle_id=vehicle_id, sensor_id=sensor_id, mission_id=mission_id,
-        start_time=start_time, end_time=end_time, limit=limit,
+        level=level,
+        component=component,
+        event_type=event_type,
+        vehicle_id=vehicle_id,
+        sensor_id=sensor_id,
+        mission_id=mission_id,
+        start_time=start_time,
+        end_time=end_time,
+        limit=limit,
     )
 
 
@@ -691,8 +766,11 @@ def platform_alerts(
     limit: int = Query(default=500, ge=1, le=5000),
 ) -> list[dict[str, Any]]:
     return repository.list_platform_alerts(
-        status=status, severity=severity, component=component,
-        alert_type=alert_type, limit=limit,
+        status=status,
+        severity=severity,
+        component=component,
+        alert_type=alert_type,
+        limit=limit,
     )
 
 
@@ -709,15 +787,20 @@ async def acknowledge_platform_alert(
     alert_id: str, request: AlertActionRequest
 ) -> dict[str, Any]:
     try:
-        alert = repository.acknowledge_platform_alert(alert_id, request.actor, request.note)
+        alert = repository.acknowledge_platform_alert(
+            alert_id, request.actor, request.note
+        )
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     if alert is None:
         raise HTTPException(status_code=404, detail="Platform alert not found")
     await stream_connections.broadcast({"stream_type": "platform_alert", "data": alert})
     await _application_log(
-        "INFO", "SYSTEM", "PLATFORM_ALERT_ACKNOWLEDGED",
-        f"Platform alert {alert_id} was acknowledged.", details={"actor": request.actor},
+        "INFO",
+        "SYSTEM",
+        "PLATFORM_ALERT_ACKNOWLEDGED",
+        f"Platform alert {alert_id} was acknowledged.",
+        details={"actor": request.actor},
     )
     return alert
 
@@ -731,8 +814,11 @@ async def resolve_platform_alert(
         raise HTTPException(status_code=404, detail="Platform alert not found")
     await stream_connections.broadcast({"stream_type": "platform_alert", "data": alert})
     await _application_log(
-        "INFO", "SYSTEM", "PLATFORM_ALERT_RESOLVED",
-        f"Platform alert {alert_id} was resolved.", details={"actor": request.actor},
+        "INFO",
+        "SYSTEM",
+        "PLATFORM_ALERT_RESOLVED",
+        f"Platform alert {alert_id} was resolved.",
+        details={"actor": request.actor},
     )
     return alert
 
@@ -761,10 +847,18 @@ def get_retention_policy() -> dict[str, int]:
 @app.put("/api/v1/storage/retention-policy")
 async def update_retention_policy(request: RetentionPolicyUpdate) -> dict[str, int]:
     try:
-        policy = _storage_manager().update_retention_policy(request.model_dump(exclude_none=True))
+        policy = _storage_manager().update_retention_policy(
+            request.model_dump(exclude_none=True)
+        )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    await _application_log("INFO", "STORAGE", "RETENTION_POLICY_UPDATED", "Storage retention policy updated.", details=policy)
+    await _application_log(
+        "INFO",
+        "STORAGE",
+        "RETENTION_POLICY_UPDATED",
+        "Storage retention policy updated.",
+        details=policy,
+    )
     return policy
 
 
@@ -779,7 +873,13 @@ async def storage_cleanup_execute(request: CleanupExecuteRequest) -> dict[str, A
         result = _storage_manager().execute_cleanup(request.confirmation)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
-    await _application_log("WARNING", "STORAGE", "MANUAL_CLEANUP", "Manual retention cleanup executed.", details=result)
+    await _application_log(
+        "WARNING",
+        "STORAGE",
+        "MANUAL_CLEANUP",
+        "Manual retention cleanup executed.",
+        details=result,
+    )
     return result
 
 
@@ -794,7 +894,9 @@ def mission_telemetry_page(
 ) -> dict[str, Any]:
     if repository.get_mission(mission_id) is None:
         raise HTTPException(status_code=404, detail="Mission not found")
-    return _storage_manager().mission_telemetry_page(mission_id, page, page_size, sort_order, start_time, end_time)
+    return _storage_manager().mission_telemetry_page(
+        mission_id, page, page_size, sort_order, start_time, end_time
+    )
 
 
 @app.get("/api/v1/missions/{mission_id}/raw-messages/page")
@@ -808,7 +910,9 @@ def mission_raw_page(
 ) -> dict[str, Any]:
     if repository.get_mission(mission_id) is None:
         raise HTTPException(status_code=404, detail="Mission not found")
-    return _storage_manager().mission_raw_page(mission_id, page, page_size, sort_order, start_time, end_time)
+    return _storage_manager().mission_raw_page(
+        mission_id, page, page_size, sort_order, start_time, end_time
+    )
 
 
 @app.get("/api/v1/storage/application-logs/page")
@@ -829,26 +933,41 @@ def mission_delete_preview(mission_id: str) -> dict[str, Any]:
 
 
 @app.delete("/api/v1/missions/{mission_id}")
-async def delete_mission_data(mission_id: str, confirm: str = Query(min_length=1)) -> dict[str, Any]:
+async def delete_mission_data(
+    mission_id: str, confirm: str = Query(min_length=1)
+) -> dict[str, Any]:
     try:
         result = _storage_manager().delete_mission(mission_id, confirm)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     if result is None:
         raise HTTPException(status_code=404, detail="Mission not found")
-    await _application_log("WARNING", "STORAGE", "MISSION_DELETED", f"Mission {mission_id} and linked data deleted.", mission_id=mission_id, details=result)
+    await _application_log(
+        "WARNING",
+        "STORAGE",
+        "MISSION_DELETED",
+        f"Mission {mission_id} and linked data deleted.",
+        mission_id=mission_id,
+        details=result,
+    )
     return result
 
 
 @app.post("/api/v1/export-jobs", status_code=202)
 async def create_export_job(request: ExportJobCreate) -> dict[str, Any]:
     try:
-        job = _storage_manager().create_export_job(request.mission_id, request.export_format)
+        job = _storage_manager().create_export_job(
+            request.mission_id, request.export_format
+        )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    asyncio.create_task(asyncio.to_thread(_run_export_job, job["job_id"], request.mission_id, request.export_format))
+    asyncio.create_task(
+        asyncio.to_thread(
+            _run_export_job, job["job_id"], request.mission_id, request.export_format
+        )
+    )
     return job
 
 
@@ -877,19 +996,29 @@ def download_export_job(job_id: str) -> FileResponse:
         raise HTTPException(status_code=409, detail="Export job is not ready")
     path = Path(job["file_path"])
     if not path.exists():
-        raise HTTPException(status_code=410, detail="Export file is no longer available")
+        raise HTTPException(
+            status_code=410, detail="Export file is no longer available"
+        )
     return FileResponse(path, filename=job.get("file_name") or path.name)
 
 
 @app.post("/api/v1/storage/backups", status_code=201)
 async def create_storage_backup(request: BackupCreateRequest) -> dict[str, Any]:
     result = await asyncio.to_thread(_storage_manager().create_backup, request.label)
-    await _application_log("INFO", "STORAGE", "DATABASE_BACKUP", f"Database backup {result.get('state', 'UNKNOWN').lower()}.", details=result)
+    await _application_log(
+        "INFO",
+        "STORAGE",
+        "DATABASE_BACKUP",
+        f"Database backup {result.get('state', 'UNKNOWN').lower()}.",
+        details=result,
+    )
     return result
 
 
 @app.get("/api/v1/storage/backups")
-def list_storage_backups(limit: int = Query(default=100, ge=1, le=1000)) -> list[dict[str, Any]]:
+def list_storage_backups(
+    limit: int = Query(default=100, ge=1, le=1000)
+) -> list[dict[str, Any]]:
     return _storage_manager().list_backups(limit)
 
 
@@ -902,7 +1031,9 @@ def download_storage_backup(backup_id: str) -> FileResponse:
         raise HTTPException(status_code=409, detail="Backup is not ready")
     path = Path(backup["file_path"])
     if not path.exists():
-        raise HTTPException(status_code=410, detail="Backup file is no longer available")
+        raise HTTPException(
+            status_code=410, detail="Backup file is no longer available"
+        )
     return FileResponse(path, filename=backup.get("file_name") or path.name)
 
 
@@ -914,21 +1045,39 @@ def storage_integrity_check() -> dict[str, Any]:
 @app.post("/api/v1/storage/maintenance/analyze")
 async def storage_analyze() -> dict[str, Any]:
     result = await asyncio.to_thread(_storage_manager().analyze)
-    await _application_log("INFO", "STORAGE", "DATABASE_ANALYZE", "SQLite ANALYZE completed.", details=result)
+    await _application_log(
+        "INFO",
+        "STORAGE",
+        "DATABASE_ANALYZE",
+        "SQLite ANALYZE completed.",
+        details=result,
+    )
     return result
 
 
 @app.post("/api/v1/storage/maintenance/checkpoint")
 async def storage_checkpoint() -> dict[str, Any]:
     result = await asyncio.to_thread(_storage_manager().checkpoint)
-    await _application_log("INFO", "STORAGE", "WAL_CHECKPOINT", "SQLite WAL checkpoint completed.", details=result)
+    await _application_log(
+        "INFO",
+        "STORAGE",
+        "WAL_CHECKPOINT",
+        "SQLite WAL checkpoint completed.",
+        details=result,
+    )
     return result
 
 
 @app.post("/api/v1/storage/maintenance/vacuum")
 async def storage_vacuum() -> dict[str, Any]:
     result = await asyncio.to_thread(_storage_manager().vacuum)
-    await _application_log("WARNING", "STORAGE", "DATABASE_VACUUM", "SQLite VACUUM completed.", details=result)
+    await _application_log(
+        "WARNING",
+        "STORAGE",
+        "DATABASE_VACUUM",
+        "SQLite VACUUM completed.",
+        details=result,
+    )
     return result
 
 
@@ -941,7 +1090,9 @@ def list_vehicle_types() -> list[dict[str, Any]]:
 
 
 @app.get("/api/v1/vehicle-parameter-definitions")
-def list_vehicle_parameter_definitions(vehicle_type: str | None = None) -> list[dict[str, Any]]:
+def list_vehicle_parameter_definitions(
+    vehicle_type: str | None = None,
+) -> list[dict[str, Any]]:
     return repository.list_vehicle_parameter_definitions(vehicle_type)
 
 
@@ -956,14 +1107,25 @@ def list_vehicle_profiles(
 @app.post("/api/v1/vehicle-profiles", status_code=201)
 async def create_vehicle_profile(request: VehicleProfileCreate) -> dict[str, Any]:
     if request.vehicle_type not in VEHICLE_PARAMETER_DEFINITIONS:
-        raise HTTPException(status_code=422, detail="A concrete UGV, UAV, AUV or USV type is required")
+        raise HTTPException(
+            status_code=422, detail="A concrete UGV, UAV, AUV or USV type is required"
+        )
     errors = validate_parameters(request.vehicle_type, request.parameters)
     if errors:
-        raise HTTPException(status_code=422, detail={"message": "Invalid vehicle parameters", "errors": errors})
+        raise HTTPException(
+            status_code=422,
+            detail={"message": "Invalid vehicle parameters", "errors": errors},
+        )
     if repository.get_vehicle_profile(request.profile_id):
         raise HTTPException(status_code=409, detail="Vehicle profile ID already exists")
     profile = repository.upsert_vehicle_profile(request, built_in=False)
-    await _application_log("INFO", "SIMULATION", "VEHICLE_PROFILE_CREATED", f"Vehicle profile {request.profile_id} created.", details={"vehicle_type": request.vehicle_type})
+    await _application_log(
+        "INFO",
+        "SIMULATION",
+        "VEHICLE_PROFILE_CREATED",
+        f"Vehicle profile {request.profile_id} created.",
+        details={"vehicle_type": request.vehicle_type},
+    )
     return profile
 
 
@@ -976,16 +1138,28 @@ def get_vehicle_profile(profile_id: str) -> dict[str, Any]:
 
 
 @app.put("/api/v1/vehicle-profiles/{profile_id}")
-async def update_vehicle_profile(profile_id: str, request: VehicleProfileUpdate) -> dict[str, Any]:
+async def update_vehicle_profile(
+    profile_id: str, request: VehicleProfileUpdate
+) -> dict[str, Any]:
     current = repository.get_vehicle_profile(profile_id)
     if current is None:
         raise HTTPException(status_code=404, detail="Vehicle profile not found")
-    parameters = request.parameters if request.parameters is not None else current["parameters"]
+    parameters = (
+        request.parameters if request.parameters is not None else current["parameters"]
+    )
     errors = validate_parameters(current["vehicle_type"], parameters)
     if errors:
-        raise HTTPException(status_code=422, detail={"message": "Invalid vehicle parameters", "errors": errors})
+        raise HTTPException(
+            status_code=422,
+            detail={"message": "Invalid vehicle parameters", "errors": errors},
+        )
     updated = repository.update_vehicle_profile(profile_id, request)
-    await _application_log("INFO", "SIMULATION", "VEHICLE_PROFILE_UPDATED", f"Vehicle profile {profile_id} updated.")
+    await _application_log(
+        "INFO",
+        "SIMULATION",
+        "VEHICLE_PROFILE_UPDATED",
+        f"Vehicle profile {profile_id} updated.",
+    )
     return updated or current
 
 
@@ -1010,7 +1184,13 @@ async def create_scenario(request: ScenarioCreate) -> dict[str, Any]:
     if _environment_context().get_scenario(request.scenario_id, include_items=False):
         raise HTTPException(status_code=409, detail="Scenario ID already exists")
     scenario = _environment_context().upsert_scenario(request, built_in=False)
-    await _application_log("INFO", "ENVIRONMENT", "SCENARIO_CREATED", f"Scenario {request.scenario_id} created.", details={"version": scenario["version"]})
+    await _application_log(
+        "INFO",
+        "ENVIRONMENT",
+        "SCENARIO_CREATED",
+        f"Scenario {request.scenario_id} created.",
+        details={"version": scenario["version"]},
+    )
     return scenario
 
 
@@ -1027,7 +1207,13 @@ async def update_scenario(scenario_id: str, request: ScenarioUpdate) -> dict[str
     scenario = _environment_context().update_scenario(scenario_id, request)
     if scenario is None:
         raise HTTPException(status_code=404, detail="Scenario not found")
-    await _application_log("INFO", "ENVIRONMENT", "SCENARIO_UPDATED", f"Scenario {scenario_id} updated.", details={"version": scenario["version"]})
+    await _application_log(
+        "INFO",
+        "ENVIRONMENT",
+        "SCENARIO_UPDATED",
+        f"Scenario {scenario_id} updated.",
+        details={"version": scenario["version"]},
+    )
     return scenario
 
 
@@ -1048,7 +1234,13 @@ async def create_obstacle(scenario_id: str, request: ObstacleCreate) -> dict[str
         item = _environment_context().create_obstacle(scenario_id, request)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    await _application_log("INFO", "ENVIRONMENT", "OBSTACLE_CREATED", f"Obstacle {item['obstacle_id']} created.", details={"scenario_id": scenario_id})
+    await _application_log(
+        "INFO",
+        "ENVIRONMENT",
+        "OBSTACLE_CREATED",
+        f"Obstacle {item['obstacle_id']} created.",
+        details={"scenario_id": scenario_id},
+    )
     return item
 
 
@@ -1068,17 +1260,27 @@ def delete_obstacle(obstacle_id: str) -> Response:
 
 
 @app.post("/api/v1/scenarios/{scenario_id}/constraints", status_code=201)
-async def create_environment_constraint(scenario_id: str, request: EnvironmentConstraintCreate) -> dict[str, Any]:
+async def create_environment_constraint(
+    scenario_id: str, request: EnvironmentConstraintCreate
+) -> dict[str, Any]:
     try:
         item = _environment_context().create_constraint(scenario_id, request)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    await _application_log("INFO", "ENVIRONMENT", "CONSTRAINT_CREATED", f"Constraint {item['constraint_id']} created.", details={"scenario_id": scenario_id})
+    await _application_log(
+        "INFO",
+        "ENVIRONMENT",
+        "CONSTRAINT_CREATED",
+        f"Constraint {item['constraint_id']} created.",
+        details={"scenario_id": scenario_id},
+    )
     return item
 
 
 @app.put("/api/v1/constraints/{constraint_id}")
-def update_environment_constraint(constraint_id: str, request: EnvironmentConstraintUpdate) -> dict[str, Any]:
+def update_environment_constraint(
+    constraint_id: str, request: EnvironmentConstraintUpdate
+) -> dict[str, Any]:
     item = _environment_context().update_constraint(constraint_id, request)
     if item is None:
         raise HTTPException(status_code=404, detail="Constraint not found")
@@ -1093,17 +1295,27 @@ def delete_environment_constraint(constraint_id: str) -> Response:
 
 
 @app.post("/api/v1/scenarios/{scenario_id}/external-fields", status_code=201)
-async def create_external_field(scenario_id: str, request: ExternalFieldCreate) -> dict[str, Any]:
+async def create_external_field(
+    scenario_id: str, request: ExternalFieldCreate
+) -> dict[str, Any]:
     try:
         item = _environment_context().create_external_field(scenario_id, request)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    await _application_log("INFO", "ENVIRONMENT", "EXTERNAL_FIELD_CREATED", f"External field {item['field_id']} created.", details={"scenario_id": scenario_id})
+    await _application_log(
+        "INFO",
+        "ENVIRONMENT",
+        "EXTERNAL_FIELD_CREATED",
+        f"External field {item['field_id']} created.",
+        details={"scenario_id": scenario_id},
+    )
     return item
 
 
 @app.put("/api/v1/external-fields/{field_id}")
-def update_external_field(field_id: str, request: ExternalFieldUpdate) -> dict[str, Any]:
+def update_external_field(
+    field_id: str, request: ExternalFieldUpdate
+) -> dict[str, Any]:
     item = _environment_context().update_external_field(field_id, request)
     if item is None:
         raise HTTPException(status_code=404, detail="External field not found")
@@ -1123,12 +1335,21 @@ def get_mission_environment(mission_id: str) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail="Mission not found")
     snapshot = _environment_context().get_mission_environment(mission_id)
     if snapshot is None:
-        return {"mission_id": mission_id, "scenario_id": None, "obstacles": [], "constraints": [], "external_fields": [], "legacy": True}
+        return {
+            "mission_id": mission_id,
+            "scenario_id": None,
+            "obstacles": [],
+            "constraints": [],
+            "external_fields": [],
+            "legacy": True,
+        }
     return snapshot
 
 
 @app.post("/api/v1/missions/{mission_id}/environment", status_code=201)
-async def capture_mission_environment(mission_id: str, request: MissionEnvironmentCapture) -> dict[str, Any]:
+async def capture_mission_environment(
+    mission_id: str, request: MissionEnvironmentCapture
+) -> dict[str, Any]:
     mission = repository.get_mission(mission_id)
     if mission is None:
         raise HTTPException(status_code=404, detail="Mission not found")
@@ -1136,12 +1357,27 @@ async def capture_mission_environment(mission_id: str, request: MissionEnvironme
     if existing is not None:
         return existing
     snapshot = _environment_context().capture_snapshot_payload(
-        mission_id=mission_id, vehicle_id=mission["vehicle_id"], vehicle_type=request.vehicle_type,
-        scenario_payload=request.scenario, capabilities=request.capabilities,
-        vehicle_profile_id=request.vehicle_profile_id, effective_parameters=request.effective_parameters,
+        mission_id=mission_id,
+        vehicle_id=mission["vehicle_id"],
+        vehicle_type=request.vehicle_type,
+        scenario_payload=request.scenario,
+        capabilities=request.capabilities,
+        vehicle_profile_id=request.vehicle_profile_id,
+        effective_parameters=request.effective_parameters,
         random_seed=request.random_seed,
     )
-    await _application_log("INFO", "ENVIRONMENT", "MISSION_ENVIRONMENT_CAPTURED", f"Environment snapshot captured for {mission_id}.", vehicle_id=mission["vehicle_id"], mission_id=mission_id, details={"scenario_id": snapshot.get("scenario_id"), "sha256": snapshot.get("sha256")})
+    await _application_log(
+        "INFO",
+        "ENVIRONMENT",
+        "MISSION_ENVIRONMENT_CAPTURED",
+        f"Environment snapshot captured for {mission_id}.",
+        vehicle_id=mission["vehicle_id"],
+        mission_id=mission_id,
+        details={
+            "scenario_id": snapshot.get("scenario_id"),
+            "sha256": snapshot.get("sha256"),
+        },
+    )
     return snapshot
 
 
@@ -1153,53 +1389,80 @@ async def create_simulation_run(request: SimulationRunCreate) -> dict[str, Any]:
     if not profile["enabled"]:
         raise HTTPException(status_code=409, detail="Vehicle profile is disabled")
     if profile["vehicle_type"] != request.vehicle_type:
-        raise HTTPException(status_code=422, detail="Vehicle type does not match the selected profile")
+        raise HTTPException(
+            status_code=422, detail="Vehicle type does not match the selected profile"
+        )
     scenario = _environment_context().get_scenario(request.scenario_id)
     if scenario is None:
         raise HTTPException(status_code=404, detail="Scenario not found")
     if not scenario.get("enabled", True):
         raise HTTPException(status_code=409, detail="Scenario is disabled")
 
-    effective_parameters = deep_merge(profile["parameters"], request.parameter_overrides)
+    effective_parameters = deep_merge(
+        profile["parameters"], request.parameter_overrides
+    )
     errors = validate_parameters(request.vehicle_type, effective_parameters)
     if errors:
-        raise HTTPException(status_code=422, detail={"message": "Invalid effective parameters", "errors": errors})
+        raise HTTPException(
+            status_code=422,
+            detail={"message": "Invalid effective parameters", "errors": errors},
+        )
     existing = repository.get_vehicle(request.vehicle_id)
     if existing and existing["active_mission_id"]:
-        raise HTTPException(status_code=409, detail="Vehicle already has a running mission")
+        raise HTTPException(
+            status_code=409, detail="Vehicle already has a running mission"
+        )
 
-    mission_id = request.mission_id or _simulation_manager().generated_mission_id(request.vehicle_id)
+    mission_id = request.mission_id or _simulation_manager().generated_mission_id(
+        request.vehicle_id
+    )
     request = request.model_copy(update={"mission_id": mission_id})
     if repository.get_mission(mission_id):
         raise HTTPException(status_code=409, detail="Mission ID already exists")
-    mission = repository.create_mission(MissionCreate(
+    mission = repository.create_mission(
+        MissionCreate(
+            mission_id=mission_id,
+            vehicle_id=request.vehicle_id,
+            name=f"{scenario['name']} - {request.vehicle_id}",
+            scenario_name=scenario["name"],
+            description=scenario.get("description", ""),
+            metadata={
+                "schema_version": "0.5.2",
+                "vehicle_type": request.vehicle_type,
+                "vehicle_profile_id": request.vehicle_profile_id,
+                "effective_parameters": effective_parameters,
+                "capabilities": profile.get("capabilities", {}),
+                "scenario_id": request.scenario_id,
+                "scenario_version": scenario.get("version"),
+                "random_seed": request.random_seed,
+            },
+        )
+    )
+    snapshot = _environment_context().build_snapshot(
+        request.scenario_id,
         mission_id=mission_id,
         vehicle_id=request.vehicle_id,
-        name=f"{scenario['name']} - {request.vehicle_id}",
-        scenario_name=scenario["name"],
-        description=scenario.get("description", ""),
-        metadata={
-            "schema_version": "0.5.2",
-            "vehicle_type": request.vehicle_type,
-            "vehicle_profile_id": request.vehicle_profile_id,
-            "effective_parameters": effective_parameters,
-            "capabilities": profile.get("capabilities", {}),
-            "scenario_id": request.scenario_id,
-            "scenario_version": scenario.get("version"),
-            "random_seed": request.random_seed,
-        },
-    ))
-    snapshot = _environment_context().build_snapshot(
-        request.scenario_id, mission_id=mission_id, vehicle_id=request.vehicle_id,
-        vehicle_type=request.vehicle_type, capabilities=profile.get("capabilities", {}),
-        vehicle_profile_id=request.vehicle_profile_id, effective_parameters=effective_parameters,
+        vehicle_type=request.vehicle_type,
+        capabilities=profile.get("capabilities", {}),
+        vehicle_profile_id=request.vehicle_profile_id,
+        effective_parameters=effective_parameters,
         random_seed=request.random_seed,
     )
-    snapshot_path = PROJECT_DIR / "backend" / "storage" / "simulation-scenarios" / f"{mission_id}.json"
-    _environment_context().write_scenario_file(request.scenario_id, target=snapshot_path, snapshot=snapshot)
+    snapshot_path = (
+        PROJECT_DIR
+        / "backend"
+        / "storage"
+        / "simulation-scenarios"
+        / f"{mission_id}.json"
+    )
+    _environment_context().write_scenario_file(
+        request.scenario_id, target=snapshot_path, snapshot=snapshot
+    )
 
     try:
-        run = _simulation_manager().create(request, effective_parameters, scenario_path_override=snapshot_path)
+        run = _simulation_manager().create(
+            request, effective_parameters, scenario_path_override=snapshot_path
+        )
     except FileNotFoundError as exc:
         repository.transition_mission(mission_id, "ABORTED")
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -1208,15 +1471,30 @@ async def create_simulation_run(request: SimulationRunCreate) -> dict[str, Any]:
             repository.transition_mission(mission_id, "ABORTED")
         except Exception:
             pass
-        await _application_log("ERROR", "SIMULATION", "SIMULATION_START_FAILED", "Simulation process could not be started.", vehicle_id=request.vehicle_id, mission_id=mission_id, details={"error": str(exc)})
+        await _application_log(
+            "ERROR",
+            "SIMULATION",
+            "SIMULATION_START_FAILED",
+            "Simulation process could not be started.",
+            vehicle_id=request.vehicle_id,
+            mission_id=mission_id,
+            details={"error": str(exc)},
+        )
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     await _application_log(
-        "INFO", "SIMULATION", "SIMULATION_RUN_CREATED", f"Simulation run {run['run_id']} created.",
-        vehicle_id=request.vehicle_id, mission_id=run["mission_id"],
+        "INFO",
+        "SIMULATION",
+        "SIMULATION_RUN_CREATED",
+        f"Simulation run {run['run_id']} created.",
+        vehicle_id=request.vehicle_id,
+        mission_id=run["mission_id"],
         details={
-            "profile_id": request.vehicle_profile_id, "vehicle_type": request.vehicle_type,
-            "launch_process": request.launch_process, "scenario_id": request.scenario_id,
-            "scenario_version": scenario.get("version"), "environment_sha256": snapshot.get("sha256"),
+            "profile_id": request.vehicle_profile_id,
+            "vehicle_type": request.vehicle_type,
+            "launch_process": request.launch_process,
+            "scenario_id": request.scenario_id,
+            "scenario_version": scenario.get("version"),
+            "environment_sha256": snapshot.get("sha256"),
             "obstacles": len(snapshot.get("obstacles", [])),
             "constraints": len(snapshot.get("constraints", [])),
             "external_fields": len(snapshot.get("external_fields", [])),
@@ -1227,7 +1505,9 @@ async def create_simulation_run(request: SimulationRunCreate) -> dict[str, Any]:
 
 
 @app.get("/api/v1/simulation-runs")
-def list_simulation_runs(limit: int = Query(default=100, ge=1, le=1000)) -> list[dict[str, Any]]:
+def list_simulation_runs(
+    limit: int = Query(default=100, ge=1, le=1000)
+) -> list[dict[str, Any]]:
     return repository.list_simulation_runs(limit)
 
 
@@ -1240,17 +1520,29 @@ def get_simulation_run(run_id: str) -> dict[str, Any]:
 
 
 @app.post("/api/v1/simulation-runs/{run_id}/stop")
-async def stop_simulation_run(run_id: str, request: SimulationRunStopRequest) -> dict[str, Any]:
+async def stop_simulation_run(
+    run_id: str, request: SimulationRunStopRequest
+) -> dict[str, Any]:
     run = _simulation_manager().stop(run_id, request.reason)
     if run is None:
         raise HTTPException(status_code=404, detail="Simulation run not found")
-    await _application_log("WARNING", "SIMULATION", "SIMULATION_STOP_REQUESTED", f"Stop requested for simulation run {run_id}.", vehicle_id=run["vehicle_id"], mission_id=run["mission_id"], details={"reason": request.reason})
+    await _application_log(
+        "WARNING",
+        "SIMULATION",
+        "SIMULATION_STOP_REQUESTED",
+        f"Stop requested for simulation run {run_id}.",
+        vehicle_id=run["vehicle_id"],
+        mission_id=run["mission_id"],
+        details={"reason": request.reason},
+    )
     await stream_connections.broadcast({"stream_type": "simulation_run", "data": run})
     return run
 
 
 @app.get("/api/v1/simulation-runs/{run_id}/log")
-def simulation_run_log(run_id: str, lines: int = Query(default=120, ge=1, le=2000)) -> dict[str, Any]:
+def simulation_run_log(
+    run_id: str, lines: int = Query(default=120, ge=1, le=2000)
+) -> dict[str, Any]:
     run = repository.get_simulation_run(run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Simulation run not found")
@@ -1266,7 +1558,9 @@ def create_vehicle(request: VehicleCreate) -> dict[str, Any]:
     try:
         return repository.create_vehicle(request)
     except sqlite3.IntegrityError as exc:
-        raise HTTPException(status_code=409, detail="Vehicle ID already exists") from exc
+        raise HTTPException(
+            status_code=409, detail="Vehicle ID already exists"
+        ) from exc
 
 
 @app.get("/api/v1/vehicles")
@@ -1283,15 +1577,22 @@ def get_vehicle(vehicle_id: str) -> dict[str, Any]:
 
 
 @app.post("/api/v1/vehicles/{vehicle_id}/heartbeat", status_code=201)
-async def vehicle_heartbeat(vehicle_id: str, heartbeat: VehicleHeartbeat) -> dict[str, Any]:
+async def vehicle_heartbeat(
+    vehicle_id: str, heartbeat: VehicleHeartbeat
+) -> dict[str, Any]:
     if heartbeat.vehicle_id != vehicle_id:
-        raise HTTPException(status_code=422, detail="Path vehicle_id does not match heartbeat vehicle_id")
+        raise HTTPException(
+            status_code=422,
+            detail="Path vehicle_id does not match heartbeat vehicle_id",
+        )
     if repository.get_vehicle(vehicle_id) is None:
         raise HTTPException(status_code=404, detail="Vehicle not found")
     try:
         return await _store_heartbeat(heartbeat, transport="HTTP")
     except sqlite3.IntegrityError as exc:
-        raise HTTPException(status_code=409, detail="Duplicate heartbeat message_id") from exc
+        raise HTTPException(
+            status_code=409, detail="Duplicate heartbeat message_id"
+        ) from exc
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
@@ -1405,7 +1706,9 @@ def sensor_quality(sensor_id: str, mission_id: str | None = None) -> dict[str, A
 
 
 @app.get("/api/v1/sensors/{sensor_id}/integrity-metrics")
-def sensor_integrity_metrics(sensor_id: str, mission_id: str | None = None) -> dict[str, Any]:
+def sensor_integrity_metrics(
+    sensor_id: str, mission_id: str | None = None
+) -> dict[str, Any]:
     metrics = repository.sensor_integrity_metrics(sensor_id, mission_id)
     if metrics is None:
         raise HTTPException(status_code=404, detail="Sensor not found")
@@ -1438,7 +1741,9 @@ async def ingest_raw_message(message: RawSensorMessage) -> dict[str, Any]:
 @app.post("/api/v1/raw-messages/batch", status_code=201)
 async def ingest_raw_batch(messages: list[RawSensorMessage]) -> dict[str, Any]:
     if len(messages) > 10_000:
-        raise HTTPException(status_code=413, detail="A batch may contain at most 10,000 messages")
+        raise HTTPException(
+            status_code=413, detail="A batch may contain at most 10,000 messages"
+        )
     stored = 0
     normalised = 0
     duplicates = 0
@@ -1452,7 +1757,13 @@ async def ingest_raw_batch(messages: list[RawSensorMessage]) -> dict[str, Any]:
         except sqlite3.IntegrityError:
             duplicates += 1
         except ValueError as exc:
-            errors.append({"index": index, "message_id": str(message.message_id), "error": str(exc)})
+            errors.append(
+                {
+                    "index": index,
+                    "message_id": str(message.message_id),
+                    "error": str(exc),
+                }
+            )
     return {
         "submitted": len(messages),
         "stored": stored,
@@ -1470,7 +1781,9 @@ def raw_message_history(
     message_type: RawMessageType | None = None,
     limit: int = Query(default=1000, ge=1, le=100_000),
 ) -> list[dict[str, Any]]:
-    return repository.raw_history(vehicle_id, sensor_id, mission_id, message_type, limit)
+    return repository.raw_history(
+        vehicle_id, sensor_id, mission_id, message_type, limit
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1486,8 +1799,12 @@ def list_integrity_events(
     limit: int = Query(default=1000, ge=1, le=100_000),
 ) -> list[dict[str, Any]]:
     return repository.list_integrity_events(
-        vehicle_id=vehicle_id, sensor_id=sensor_id, mission_id=mission_id,
-        check_type=check_type, severity=severity, limit=limit,
+        vehicle_id=vehicle_id,
+        sensor_id=sensor_id,
+        mission_id=mission_id,
+        check_type=check_type,
+        severity=severity,
+        limit=limit,
     )
 
 
@@ -1510,8 +1827,13 @@ def list_alerts(
     limit: int = Query(default=500, ge=1, le=10_000),
 ) -> list[dict[str, Any]]:
     return repository.list_alerts(
-        status=status, severity=severity, vehicle_id=vehicle_id, sensor_id=sensor_id,
-        mission_id=mission_id, alert_type=alert_type, limit=limit,
+        status=status,
+        severity=severity,
+        vehicle_id=vehicle_id,
+        sensor_id=sensor_id,
+        mission_id=mission_id,
+        alert_type=alert_type,
+        limit=limit,
     )
 
 
@@ -1524,7 +1846,9 @@ def get_alert(alert_id: str) -> dict[str, Any]:
 
 
 @app.post("/api/v1/alerts/{alert_id}/acknowledge")
-async def acknowledge_alert(alert_id: str, request: AlertActionRequest) -> dict[str, Any]:
+async def acknowledge_alert(
+    alert_id: str, request: AlertActionRequest
+) -> dict[str, Any]:
     try:
         alert = repository.acknowledge_alert(alert_id, request.actor, request.note)
     except ValueError as exc:
@@ -1550,11 +1874,15 @@ async def resolve_alert(alert_id: str, request: AlertActionRequest) -> dict[str,
 @app.post("/api/v1/missions", status_code=201)
 def create_mission(request: MissionCreate) -> dict[str, Any]:
     if repository.get_vehicle(request.vehicle_id) is None:
-        raise HTTPException(status_code=404, detail="Register the vehicle before creating a mission")
+        raise HTTPException(
+            status_code=404, detail="Register the vehicle before creating a mission"
+        )
     try:
         return repository.create_mission(request)
     except sqlite3.IntegrityError as exc:
-        raise HTTPException(status_code=409, detail="Mission ID already exists") from exc
+        raise HTTPException(
+            status_code=409, detail="Mission ID already exists"
+        ) from exc
 
 
 @app.get("/api/v1/missions")
@@ -1636,7 +1964,9 @@ def mission_integrity_metrics(mission_id: str) -> dict[str, Any]:
 @app.get("/api/v1/missions/{mission_id}/obstacle-interactions")
 def mission_obstacle_interactions(
     mission_id: str,
-    risk_level: str | None = Query(default=None, pattern="^(CLEAR|CAUTION|WARNING|CRITICAL|COLLISION)$"),
+    risk_level: str | None = Query(
+        default=None, pattern="^(CLEAR|CAUTION|WARNING|CRITICAL|COLLISION)$"
+    ),
     limit: int = Query(default=2000, ge=1, le=100000),
 ) -> list[dict[str, Any]]:
     if repository.get_mission(mission_id) is None:
@@ -1663,7 +1993,7 @@ def vehicle_obstacle_status(vehicle_id: str) -> dict[str, Any]:
         "vehicle_id": vehicle_id,
         "risk_level": "UNKNOWN",
         "avoidance_active": False,
-        "message": "No obstacle interaction samples are available."
+        "message": "No obstacle interaction samples are available.",
     }
 
 
@@ -1676,7 +2006,9 @@ def mission_constraint_violations(
 ) -> list[dict[str, Any]]:
     if repository.get_mission(mission_id) is None:
         raise HTTPException(status_code=404, detail="Mission not found")
-    return _safety_analytics_service().list_violations(mission_id, violation_type, status, limit)
+    return _safety_analytics_service().list_violations(
+        mission_id, violation_type, status, limit
+    )
 
 
 @app.get("/api/v1/missions/{mission_id}/constraint-summary")
@@ -1696,12 +2028,16 @@ def vehicle_constraint_status(vehicle_id: str) -> dict[str, Any]:
 @app.get("/api/v1/missions/{mission_id}/near-misses")
 def mission_near_misses(
     mission_id: str,
-    classification: str | None = Query(default=None, pattern="^(NEAR_MISS|CRITICAL_NEAR_MISS|COLLISION)$"),
+    classification: str | None = Query(
+        default=None, pattern="^(NEAR_MISS|CRITICAL_NEAR_MISS|COLLISION)$"
+    ),
     limit: int = Query(default=2000, ge=1, le=100000),
 ) -> list[dict[str, Any]]:
     if repository.get_mission(mission_id) is None:
         raise HTTPException(status_code=404, detail="Mission not found")
-    return _safety_analytics_service().list_near_misses(mission_id, classification, limit)
+    return _safety_analytics_service().list_near_misses(
+        mission_id, classification, limit
+    )
 
 
 @app.get("/api/v1/missions/{mission_id}/safety-summary")
@@ -1712,7 +2048,9 @@ def mission_safety_summary(mission_id: str) -> dict[str, Any]:
 
 
 @app.post("/api/v1/missions/{mission_id}/events", status_code=201)
-def create_mission_event(mission_id: str, request: MissionEventCreate) -> dict[str, Any]:
+def create_mission_event(
+    mission_id: str, request: MissionEventCreate
+) -> dict[str, Any]:
     try:
         return repository.create_event(mission_id, request)
     except LookupError as exc:
@@ -1793,8 +2131,6 @@ def export_mission(
     )
 
 
-
-
 @app.get("/api/v1/missions/{mission_id}/export/package")
 def export_mission_package(mission_id: str) -> Response:
     mission = repository.get_mission(mission_id)
@@ -1804,21 +2140,29 @@ def export_mission_package(mission_id: str) -> Response:
     telemetry_records = repository.mission_history(mission_id)
     raw_records = repository.raw_history(mission_id=mission_id, limit=100_000)
     events = repository.list_events(mission_id)
-    integrity_events = repository.list_integrity_events(mission_id=mission_id, limit=100_000)
+    integrity_events = repository.list_integrity_events(
+        mission_id=mission_id, limit=100_000
+    )
     alerts = repository.list_alerts(mission_id=mission_id, limit=10_000)
     quality = repository.quality_summary(mission_id) or {}
     integrity_metrics = repository.mission_integrity_metrics(mission_id) or {}
     environment = _environment_context().get_mission_environment(mission_id) or {}
-    obstacle_interactions = _obstacle_interaction_service().list_interactions(mission_id=mission_id, limit=100000)
+    obstacle_interactions = _obstacle_interaction_service().list_interactions(
+        mission_id=mission_id, limit=100000
+    )
     obstacle_interactions.reverse()
-    constraint_violations = _safety_analytics_service().list_violations(mission_id, limit=100000)
+    constraint_violations = _safety_analytics_service().list_violations(
+        mission_id, limit=100000
+    )
     constraint_violations.reverse()
     near_misses = _safety_analytics_service().list_near_misses(mission_id, limit=100000)
     near_misses.reverse()
     safety_summary = _safety_analytics_service().safety_summary(mission_id)
     safe_id = re.sub(r"[^A-Za-z0-9_.-]", "_", mission_id)
 
-    telemetry_jsonl = "\n".join(json.dumps(item, separators=(",", ":")) for item in telemetry_records)
+    telemetry_jsonl = "\n".join(
+        json.dumps(item, separators=(",", ":")) for item in telemetry_records
+    )
     if telemetry_jsonl:
         telemetry_jsonl += "\n"
 
@@ -1831,14 +2175,27 @@ def export_mission_package(mission_id: str) -> Response:
     else:
         telemetry_csv.write("mission_id\n")
 
-    raw_jsonl = "\n".join(json.dumps(item, separators=(",", ":")) for item in raw_records)
+    raw_jsonl = "\n".join(
+        json.dumps(item, separators=(",", ":")) for item in raw_records
+    )
     if raw_jsonl:
         raw_jsonl += "\n"
 
     raw_fields = [
-        "message_id", "vehicle_id", "sensor_id", "mission_id", "sequence_no",
-        "timestamp_utc", "received_at_utc", "latency_ms", "message_type",
-        "transport", "topic", "valid", "confidence", "payload_json",
+        "message_id",
+        "vehicle_id",
+        "sensor_id",
+        "mission_id",
+        "sequence_no",
+        "timestamp_utc",
+        "received_at_utc",
+        "latency_ms",
+        "message_type",
+        "transport",
+        "topic",
+        "valid",
+        "confidence",
+        "payload_json",
     ]
     raw_csv = io.StringIO(newline="")
     raw_writer = csv.DictWriter(raw_csv, fieldnames=raw_fields)
@@ -1849,21 +2206,33 @@ def export_mission_package(mission_id: str) -> Response:
                 **{key: item.get(key) for key in raw_fields if key != "payload_json"},
                 "valid": item.get("quality", {}).get("valid"),
                 "confidence": item.get("quality", {}).get("confidence"),
-                "payload_json": json.dumps(item.get("payload", {}), separators=(",", ":")),
+                "payload_json": json.dumps(
+                    item.get("payload", {}), separators=(",", ":")
+                ),
             }
         )
 
     package = io.BytesIO()
-    with zipfile.ZipFile(package, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+    with zipfile.ZipFile(
+        package, mode="w", compression=zipfile.ZIP_DEFLATED
+    ) as archive:
         archive.writestr("mission.json", json.dumps(mission, indent=2))
         archive.writestr("quality.json", json.dumps(quality, indent=2))
         archive.writestr("events.json", json.dumps(events, indent=2))
-        archive.writestr("integrity-events.json", json.dumps(integrity_events, indent=2))
-        archive.writestr("integrity-metrics.json", json.dumps(integrity_metrics, indent=2))
+        archive.writestr(
+            "integrity-events.json", json.dumps(integrity_events, indent=2)
+        )
+        archive.writestr(
+            "integrity-metrics.json", json.dumps(integrity_metrics, indent=2)
+        )
         archive.writestr("alerts.json", json.dumps(alerts, indent=2))
         archive.writestr("environment.json", json.dumps(environment, indent=2))
-        archive.writestr("obstacle-interactions.json", json.dumps(obstacle_interactions, indent=2))
-        archive.writestr("constraint-violations.json", json.dumps(constraint_violations, indent=2))
+        archive.writestr(
+            "obstacle-interactions.json", json.dumps(obstacle_interactions, indent=2)
+        )
+        archive.writestr(
+            "constraint-violations.json", json.dumps(constraint_violations, indent=2)
+        )
         archive.writestr("near-misses.json", json.dumps(near_misses, indent=2))
         archive.writestr("safety-summary.json", json.dumps(safety_summary, indent=2))
         archive.writestr("telemetry.csv", telemetry_csv.getvalue())
@@ -1874,7 +2243,9 @@ def export_mission_package(mission_id: str) -> Response:
     return Response(
         content=package.getvalue(),
         media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="{safe_id}-omip-export.zip"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="{safe_id}-omip-export.zip"'
+        },
     )
 
 
@@ -1894,12 +2265,25 @@ def export_raw_mission(
         return Response(
             content=content,
             media_type="application/x-ndjson",
-            headers={"Content-Disposition": f'attachment; filename="{safe_id}-raw.jsonl"'},
+            headers={
+                "Content-Disposition": f'attachment; filename="{safe_id}-raw.jsonl"'
+            },
         )
     fields = [
-        "message_id", "vehicle_id", "sensor_id", "mission_id", "sequence_no",
-        "timestamp_utc", "received_at_utc", "latency_ms", "message_type",
-        "transport", "topic", "valid", "confidence", "payload_json",
+        "message_id",
+        "vehicle_id",
+        "sensor_id",
+        "mission_id",
+        "sequence_no",
+        "timestamp_utc",
+        "received_at_utc",
+        "latency_ms",
+        "message_type",
+        "transport",
+        "topic",
+        "valid",
+        "confidence",
+        "payload_json",
     ]
     output = io.StringIO(newline="")
     writer = csv.DictWriter(output, fieldnames=fields)
@@ -1910,7 +2294,9 @@ def export_raw_mission(
                 **{key: item.get(key) for key in fields if key != "payload_json"},
                 "valid": item.get("quality", {}).get("valid"),
                 "confidence": item.get("quality", {}).get("confidence"),
-                "payload_json": json.dumps(item.get("payload", {}), separators=(",", ":")),
+                "payload_json": json.dumps(
+                    item.get("payload", {}), separators=(",", ":")
+                ),
             }
         )
     return Response(
@@ -1918,7 +2304,6 @@ def export_raw_mission(
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{safe_id}-raw.csv"'},
     )
-
 
 
 async def _websocket_loop(websocket: WebSocket, manager: ConnectionManager) -> None:

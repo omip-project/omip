@@ -8,23 +8,41 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 MissionStatus = Literal["PLANNED", "RUNNING", "COMPLETED", "ABORTED"]
 VehicleType = Literal["GROUND_VEHICLE", "AUV", "USV", "UAV", "SIMULATED", "OTHER"]
-SimulationRunStatus = Literal["QUEUED", "STARTING", "RUNNING", "STOPPING", "COMPLETED", "FAILED", "ABORTED"]
-ConnectionStatus = Literal["ONLINE", "DEGRADED", "OFFLINE", "INACTIVE", "DISABLED", "UNKNOWN"]
-RawMessageType = Literal["GNSS", "IMU", "ODOMETRY", "BATTERY", "VEHICLE_STATUS", "GENERIC"]
+SimulationRunStatus = Literal[
+    "QUEUED", "STARTING", "RUNNING", "STOPPING", "COMPLETED", "FAILED", "ABORTED"
+]
+ConnectionStatus = Literal[
+    "ONLINE", "DEGRADED", "OFFLINE", "INACTIVE", "DISABLED", "UNKNOWN"
+]
+RawMessageType = Literal[
+    "GNSS", "IMU", "ODOMETRY", "BATTERY", "VEHICLE_STATUS", "GENERIC"
+]
 EventSeverity = Literal["INFO", "WARNING", "CRITICAL"]
 EventSource = Literal["MANUAL", "SIMULATOR", "SYSTEM", "IMPORTED"]
 TransportType = Literal["HTTP", "MQTT", "FILE_UPLOAD", "SIMULATOR"]
 HeartbeatState = Literal["RUNNING", "IDLE", "STOPPING"]
 IntegrityCheckType = Literal[
-    "SEQUENCE_GAP", "DUPLICATE_MESSAGE", "OUT_OF_ORDER",
-    "LOW_SAMPLING_RATE", "HIGH_SAMPLING_RATE", "HIGH_LATENCY",
-    "TIMESTAMP_REGRESSION", "FUTURE_TIMESTAMP", "CLOCK_DRIFT",
+    "SEQUENCE_GAP",
+    "DUPLICATE_MESSAGE",
+    "OUT_OF_ORDER",
+    "LOW_SAMPLING_RATE",
+    "HIGH_SAMPLING_RATE",
+    "HIGH_LATENCY",
+    "TIMESTAMP_REGRESSION",
+    "FUTURE_TIMESTAMP",
+    "CLOCK_DRIFT",
 ]
 IntegrityStreamKind = Literal["RAW_SENSOR", "TELEMETRY"]
 AlertType = Literal[
-    "SEQUENCE_GAP", "DUPLICATE_MESSAGE", "OUT_OF_ORDER",
-    "LOW_SAMPLING_RATE", "HIGH_SAMPLING_RATE", "HIGH_LATENCY",
-    "TIMESTAMP_REGRESSION", "FUTURE_TIMESTAMP", "CLOCK_DRIFT",
+    "SEQUENCE_GAP",
+    "DUPLICATE_MESSAGE",
+    "OUT_OF_ORDER",
+    "LOW_SAMPLING_RATE",
+    "HIGH_SAMPLING_RATE",
+    "HIGH_LATENCY",
+    "TIMESTAMP_REGRESSION",
+    "FUTURE_TIMESTAMP",
+    "CLOCK_DRIFT",
 ]
 AlertStatus = Literal["OPEN", "ACKNOWLEDGED", "RESOLVED"]
 AlertResolutionSource = Literal["MANUAL", "AUTOMATIC"]
@@ -228,7 +246,9 @@ class MissionEventCreate(BaseModel):
 
     @field_validator("start_timestamp_utc", "end_timestamp_utc")
     @classmethod
-    def timestamps_must_be_timezone_aware(cls, value: datetime | None) -> datetime | None:
+    def timestamps_must_be_timezone_aware(
+        cls, value: datetime | None
+    ) -> datetime | None:
         if value is None:
             return None
         if value.tzinfo is None or value.utcoffset() is None:
@@ -238,7 +258,9 @@ class MissionEventCreate(BaseModel):
     @model_validator(mode="after")
     def end_must_not_precede_start(self) -> "MissionEventCreate":
         if self.end_timestamp_utc and self.end_timestamp_utc < self.start_timestamp_utc:
-            raise ValueError("end_timestamp_utc cannot be earlier than start_timestamp_utc")
+            raise ValueError(
+                "end_timestamp_utc cannot be earlier than start_timestamp_utc"
+            )
         return self
 
 
@@ -253,7 +275,9 @@ class MissionEventUpdate(BaseModel):
 
     @field_validator("start_timestamp_utc", "end_timestamp_utc")
     @classmethod
-    def timestamps_must_be_timezone_aware(cls, value: datetime | None) -> datetime | None:
+    def timestamps_must_be_timezone_aware(
+        cls, value: datetime | None
+    ) -> datetime | None:
         if value is None:
             return None
         if value.tzinfo is None or value.utcoffset() is None:
@@ -309,7 +333,9 @@ class CleanupExecuteRequest(BaseModel):
 
 class ExportJobCreate(BaseModel):
     mission_id: str = Field(min_length=1, max_length=128)
-    export_format: Literal["package", "telemetry_csv", "telemetry_jsonl", "raw_csv", "raw_jsonl"] = "package"
+    export_format: Literal[
+        "package", "telemetry_csv", "telemetry_jsonl", "raw_csv", "raw_jsonl"
+    ] = "package"
 
 
 class BackupCreateRequest(BaseModel):
@@ -342,17 +368,36 @@ class VehicleProfileUpdate(BaseModel):
 CoordinateFrame = Literal["LOCAL_ENU", "WGS84"]
 GeometryType = Literal["POINT", "CIRCLE", "SPHERE", "BOX", "POLYGON"]
 ObstacleType = Literal[
-    "STATIC_OBSTACLE", "DYNAMIC_OBSTACLE", "UNKNOWN_OBJECT", "TERRAIN",
-    "BUILDING", "VESSEL", "UNDERWATER_STRUCTURE",
+    "STATIC_OBSTACLE",
+    "DYNAMIC_OBSTACLE",
+    "UNKNOWN_OBJECT",
+    "TERRAIN",
+    "BUILDING",
+    "VESSEL",
+    "UNDERWATER_STRUCTURE",
 ]
 ConstraintType = Literal[
-    "SPEED_LIMIT", "NO_ENTRY_ZONE", "MAXIMUM_ALTITUDE", "MINIMUM_ALTITUDE",
-    "MAXIMUM_DEPTH", "MINIMUM_DEPTH", "MISSION_BOUNDARY", "REQUIRED_CORRIDOR",
-    "CHECKPOINT", "BATTERY_RETURN_THRESHOLD", "COMMUNICATION_REQUIRED_ZONE",
+    "SPEED_LIMIT",
+    "NO_ENTRY_ZONE",
+    "MAXIMUM_ALTITUDE",
+    "MINIMUM_ALTITUDE",
+    "MAXIMUM_DEPTH",
+    "MINIMUM_DEPTH",
+    "MISSION_BOUNDARY",
+    "REQUIRED_CORRIDOR",
+    "CHECKPOINT",
+    "BATTERY_RETURN_THRESHOLD",
+    "COMMUNICATION_REQUIRED_ZONE",
 ]
 ExternalFieldType = Literal[
-    "WIND", "OCEAN_CURRENT", "WATER_CURRENT", "ROAD_SLOPE",
-    "SURFACE_FRICTION", "TERRAIN_ELEVATION", "COMMUNICATION_QUALITY", "GNSS_QUALITY",
+    "WIND",
+    "OCEAN_CURRENT",
+    "WATER_CURRENT",
+    "ROAD_SLOPE",
+    "SURFACE_FRICTION",
+    "TERRAIN_ELEVATION",
+    "COMMUNICATION_QUALITY",
+    "GNSS_QUALITY",
 ]
 ConstraintSeverity = Literal["ADVISORY", "RECOMMENDED", "MANDATORY"]
 EnvironmentSource = Literal["SCENARIO", "MANUAL", "IMPORTED", "INFERRED", "SENSOR"]
@@ -382,11 +427,16 @@ class EnvironmentGeometry(BaseModel):
 
     @model_validator(mode="after")
     def validate_geometry(self) -> "EnvironmentGeometry":
-        if self.geometry_type in {"POINT", "CIRCLE", "SPHERE", "BOX"} and self.position is None:
+        if (
+            self.geometry_type in {"POINT", "CIRCLE", "SPHERE", "BOX"}
+            and self.position is None
+        ):
             raise ValueError(f"{self.geometry_type} geometry requires position")
         if self.geometry_type in {"CIRCLE", "SPHERE"} and self.radius_m is None:
             raise ValueError(f"{self.geometry_type} geometry requires radius_m")
-        if self.geometry_type == "BOX" and (self.width_m is None or self.length_m is None):
+        if self.geometry_type == "BOX" and (
+            self.width_m is None or self.length_m is None
+        ):
             raise ValueError("BOX geometry requires width_m and length_m")
         if self.geometry_type == "POLYGON" and len(self.points) < 3:
             raise ValueError("POLYGON geometry requires at least three points")
@@ -400,7 +450,9 @@ class Applicability(BaseModel):
 
 
 class ObstacleCreate(Applicability):
-    obstacle_id: str | None = Field(default=None, min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_.-]+$")
+    obstacle_id: str | None = Field(
+        default=None, min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_.-]+$"
+    )
     name: str = Field(min_length=1, max_length=160)
     obstacle_type: ObstacleType = "STATIC_OBSTACLE"
     geometry: EnvironmentGeometry
@@ -432,7 +484,9 @@ class ObstacleUpdate(BaseModel):
 
 
 class EnvironmentConstraintCreate(Applicability):
-    constraint_id: str | None = Field(default=None, min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_.-]+$")
+    constraint_id: str | None = Field(
+        default=None, min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_.-]+$"
+    )
     name: str = Field(min_length=1, max_length=160)
     constraint_type: ConstraintType
     geometry: EnvironmentGeometry | None = None
@@ -458,7 +512,9 @@ class EnvironmentConstraintUpdate(BaseModel):
 
 
 class ExternalFieldCreate(Applicability):
-    field_id: str | None = Field(default=None, min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_.-]+$")
+    field_id: str | None = Field(
+        default=None, min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_.-]+$"
+    )
     name: str = Field(min_length=1, max_length=160)
     field_type: ExternalFieldType
     geometry: EnvironmentGeometry | None = None
@@ -536,8 +592,15 @@ class SimulationRunCreate(BaseModel):
     vehicle_id: str = Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_.-]+$")
     vehicle_type: VehicleType
     vehicle_profile_id: str = Field(min_length=1, max_length=128)
-    scenario_id: str = Field(default="multi_sensor_nominal", min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_.-]+$")
-    mission_id: str | None = Field(default=None, min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_.-]+$")
+    scenario_id: str = Field(
+        default="multi_sensor_nominal",
+        min_length=1,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9_.-]+$",
+    )
+    mission_id: str | None = Field(
+        default=None, min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_.-]+$"
+    )
     duration_s: float = Field(default=60.0, ge=0.0, le=604800.0)
     transport: Literal["http", "mqtt"] = "http"
     random_seed: int = Field(default=42, ge=0, le=2_147_483_647)

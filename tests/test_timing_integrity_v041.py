@@ -4,18 +4,20 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi.testclient import TestClient
-
 from app import main
 from app.database import OmipRepository
 from app.integrity_service import DataIntegrityService
 from app.normalizer import RawMessageNormalizer
-from app.schemas import MissionCreate, RawSensorMessage, SensorCreate, VehicleCreate
+from app.schemas import (MissionCreate, RawSensorMessage, SensorCreate,
+                         VehicleCreate)
+from fastapi.testclient import TestClient
 
 
 def configured_repository(path: Path) -> OmipRepository:
     repo = OmipRepository(path)
-    repo.create_vehicle(VehicleCreate(vehicle_id="TIME-VEH", vehicle_name="Timing vehicle"))
+    repo.create_vehicle(
+        VehicleCreate(vehicle_id="TIME-VEH", vehicle_name="Timing vehicle")
+    )
     repo.create_sensor(
         "TIME-VEH",
         SensorCreate(
@@ -26,7 +28,9 @@ def configured_repository(path: Path) -> OmipRepository:
         ),
     )
     repo.create_mission(
-        MissionCreate(mission_id="TIME-MISSION", vehicle_id="TIME-VEH", name="Timing mission")
+        MissionCreate(
+            mission_id="TIME-MISSION", vehicle_id="TIME-VEH", name="Timing mission"
+        )
     )
     repo.transition_mission("TIME-MISSION", "RUNNING")
     return repo
@@ -80,15 +84,26 @@ def test_timing_api_and_automatic_alert_recovery(tmp_path: Path) -> None:
     with TestClient(main.app) as client:
         first_timestamp = datetime.now(timezone.utc)
         first = raw(0, first_timestamp)
-        assert client.post("/api/v1/raw-messages", json=first.model_dump(mode="json")).status_code == 201
+        assert (
+            client.post(
+                "/api/v1/raw-messages", json=first.model_dump(mode="json")
+            ).status_code
+            == 201
+        )
 
         delayed = raw(1, datetime.now(timezone.utc) - timedelta(seconds=3))
-        response = client.post("/api/v1/raw-messages", json=delayed.model_dump(mode="json"))
+        response = client.post(
+            "/api/v1/raw-messages", json=delayed.model_dump(mode="json")
+        )
         assert response.status_code == 201
 
         latency_alerts = client.get(
             "/api/v1/alerts",
-            params={"mission_id": "TIME-MISSION", "sensor_id": "TIME-VEH-GNSS", "alert_type": "HIGH_LATENCY"},
+            params={
+                "mission_id": "TIME-MISSION",
+                "sensor_id": "TIME-VEH-GNSS",
+                "alert_type": "HIGH_LATENCY",
+            },
         ).json()
         assert len(latency_alerts) == 1
         assert latency_alerts[0]["severity"] == "CRITICAL"
@@ -96,24 +111,46 @@ def test_timing_api_and_automatic_alert_recovery(tmp_path: Path) -> None:
 
         regression_events = client.get(
             "/api/v1/integrity-events",
-            params={"mission_id": "TIME-MISSION", "sensor_id": "TIME-VEH-GNSS", "check_type": "TIMESTAMP_REGRESSION"},
+            params={
+                "mission_id": "TIME-MISSION",
+                "sensor_id": "TIME-VEH-GNSS",
+                "check_type": "TIMESTAMP_REGRESSION",
+            },
         ).json()
         assert len(regression_events) == 1
 
         healthy = raw(2, datetime.now(timezone.utc))
-        assert client.post("/api/v1/raw-messages", json=healthy.model_dump(mode="json")).status_code == 201
+        assert (
+            client.post(
+                "/api/v1/raw-messages", json=healthy.model_dump(mode="json")
+            ).status_code
+            == 201
+        )
         latency_alerts = client.get(
             "/api/v1/alerts",
-            params={"mission_id": "TIME-MISSION", "sensor_id": "TIME-VEH-GNSS", "alert_type": "HIGH_LATENCY"},
+            params={
+                "mission_id": "TIME-MISSION",
+                "sensor_id": "TIME-VEH-GNSS",
+                "alert_type": "HIGH_LATENCY",
+            },
         ).json()
         assert latency_alerts[0]["status"] == "RESOLVED"
         assert latency_alerts[0]["resolution_source"] == "AUTOMATIC"
 
         future = raw(3, datetime.now(timezone.utc) + timedelta(seconds=15))
-        assert client.post("/api/v1/raw-messages", json=future.model_dump(mode="json")).status_code == 201
+        assert (
+            client.post(
+                "/api/v1/raw-messages", json=future.model_dump(mode="json")
+            ).status_code
+            == 201
+        )
         future_events = client.get(
             "/api/v1/integrity-events",
-            params={"mission_id": "TIME-MISSION", "sensor_id": "TIME-VEH-GNSS", "check_type": "FUTURE_TIMESTAMP"},
+            params={
+                "mission_id": "TIME-MISSION",
+                "sensor_id": "TIME-VEH-GNSS",
+                "check_type": "FUTURE_TIMESTAMP",
+            },
         ).json()
         assert len(future_events) == 1
         assert future_events[0]["severity"] == "CRITICAL"

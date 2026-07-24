@@ -12,7 +12,6 @@ from uuid import uuid4
 
 from .schemas import MissionEventCreate
 
-
 RISK_ORDER = {"CLEAR": 0, "CAUTION": 1, "WARNING": 2, "CRITICAL": 3, "COLLISION": 4}
 
 
@@ -64,8 +63,7 @@ class ObstacleInteractionService:
 
     def _initialise(self) -> None:
         with self._connect() as connection:
-            connection.executescript(
-                """
+            connection.executescript("""
                 CREATE TABLE IF NOT EXISTS obstacle_interactions (
                     interaction_id TEXT PRIMARY KEY,
                     mission_id TEXT NOT NULL,
@@ -104,8 +102,7 @@ class ObstacleInteractionService:
                     ON obstacle_interactions(vehicle_id, timestamp_utc DESC);
                 CREATE INDEX IF NOT EXISTS idx_obstacle_interactions_risk
                     ON obstacle_interactions(risk_level, timestamp_utc DESC);
-                """
-            )
+                """)
 
     # ------------------------------------------------------------------
     # Geometry and vehicle safety envelope
@@ -130,7 +127,9 @@ class ObstacleInteractionService:
         )
         horizontal = 0.5 * math.hypot(length, width)
         if horizontal <= 0.0:
-            horizontal = float(operational.get("effective_safety_radius_m", 0.75) or 0.75)
+            horizontal = float(
+                operational.get("effective_safety_radius_m", 0.75) or 0.75
+            )
         vehicle_type = str(snapshot.get("vehicle_type", "GROUND_VEHICLE"))
         if vehicle_type in {"UAV", "AUV"}:
             body = max(horizontal, height * 0.5)
@@ -148,11 +147,15 @@ class ObstacleInteractionService:
         )
 
     @staticmethod
-    def _dynamic_position(obstacle: dict[str, Any], timestamp: datetime, snapshot: dict[str, Any]) -> tuple[float, float, float]:
+    def _dynamic_position(
+        obstacle: dict[str, Any], timestamp: datetime, snapshot: dict[str, Any]
+    ) -> tuple[float, float, float]:
         base = ObstacleInteractionService._point(obstacle.get("geometry") or {})
         velocity = obstacle.get("velocity") or {}
         try:
-            origin = datetime.fromisoformat(str(snapshot.get("snapshot_created_at_utc")).replace("Z", "+00:00"))
+            origin = datetime.fromisoformat(
+                str(snapshot.get("snapshot_created_at_utc")).replace("Z", "+00:00")
+            )
             elapsed = max(0.0, (timestamp - origin).total_seconds())
         except Exception:
             elapsed = 0.0
@@ -186,10 +189,16 @@ class ObstacleInteractionService:
         return inside
 
     @staticmethod
-    def _point_segment_distance(px: float, py: float, ax: float, ay: float, bx: float, by: float) -> tuple[float, float, float]:
+    def _point_segment_distance(
+        px: float, py: float, ax: float, ay: float, bx: float, by: float
+    ) -> tuple[float, float, float]:
         dx, dy = bx - ax, by - ay
         denom = dx * dx + dy * dy
-        t = 0.0 if denom <= 1e-12 else max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / denom))
+        t = (
+            0.0
+            if denom <= 1e-12
+            else max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / denom))
+        )
         qx, qy = ax + t * dx, ay + t * dy
         return math.hypot(px - qx, py - qy), qx, qy
 
@@ -222,8 +231,14 @@ class ObstacleInteractionService:
             half_x = float(geometry.get("length_m", 0.0) or 0.0) * 0.5
             half_y = float(geometry.get("width_m", 0.0) or 0.0) * 0.5
             half_z = float(geometry.get("height_m", 0.0) or 0.0) * 0.5
-            qx, qy, qz = abs(x - ox) - half_x, abs(y - oy) - half_y, abs(z - oz) - half_z
-            outside = math.sqrt(max(qx, 0.0) ** 2 + max(qy, 0.0) ** 2 + max(qz, 0.0) ** 2)
+            qx, qy, qz = (
+                abs(x - ox) - half_x,
+                abs(y - oy) - half_y,
+                abs(z - oz) - half_z,
+            )
+            outside = math.sqrt(
+                max(qx, 0.0) ** 2 + max(qy, 0.0) ** 2 + max(qz, 0.0) ** 2
+            )
             inside = min(max(qx, qy, qz), 0.0)
             surface = outside + inside
             radius = math.sqrt(half_x * half_x + half_y * half_y + half_z * half_z)
@@ -245,7 +260,15 @@ class ObstacleInteractionService:
             surface = -best[0] if self._point_in_polygon(x, y, points) else best[0]
             direction = self._unit(best[1] - x, best[2] - y, 0.0)
             centre_distance = math.hypot(ox - x, oy - y)
-            radius = max((math.hypot(float(p.get("x_m", 0.0)) - ox, float(p.get("y_m", 0.0)) - oy) for p in points), default=0.0)
+            radius = max(
+                (
+                    math.hypot(
+                        float(p.get("x_m", 0.0)) - ox, float(p.get("y_m", 0.0)) - oy
+                    )
+                    for p in points
+                ),
+                default=0.0,
+            )
         else:
             surface = centre_distance
 
@@ -258,14 +281,22 @@ class ObstacleInteractionService:
         )
 
     @staticmethod
-    def classify_risk(clearance: float, time_to_collision: float | None, safety_radius: float) -> str:
+    def classify_risk(
+        clearance: float, time_to_collision: float | None, safety_radius: float
+    ) -> str:
         if clearance <= 0.0:
             return "COLLISION"
-        if (time_to_collision is not None and time_to_collision <= 2.0) or clearance <= max(0.5, safety_radius * 0.35):
+        if (
+            time_to_collision is not None and time_to_collision <= 2.0
+        ) or clearance <= max(0.5, safety_radius * 0.35):
             return "CRITICAL"
-        if (time_to_collision is not None and time_to_collision <= 5.0) or clearance <= max(1.5, safety_radius):
+        if (
+            time_to_collision is not None and time_to_collision <= 5.0
+        ) or clearance <= max(1.5, safety_radius):
             return "WARNING"
-        if (time_to_collision is not None and time_to_collision <= 10.0) or clearance <= max(3.0, safety_radius * 2.5):
+        if (
+            time_to_collision is not None and time_to_collision <= 10.0
+        ) or clearance <= max(3.0, safety_radius * 2.5):
             return "CAUTION"
         return "CLEAR"
 
@@ -293,11 +324,18 @@ class ObstacleInteractionService:
             float(velocity_data.get("vy_mps", 0.0) or 0.0),
             float(velocity_data.get("vz_mps", 0.0) or 0.0),
         )
-        timestamp = datetime.fromisoformat(str(telemetry["timestamp_utc"]).replace("Z", "+00:00"))
+        timestamp = datetime.fromisoformat(
+            str(telemetry["timestamp_utc"]).replace("Z", "+00:00")
+        )
         safety_radius = self.safety_radius(snapshot)
-        avoidance_active = str((telemetry.get("state") or {}).get("operating_mode", "")) == "OBSTACLE_AVOIDANCE"
+        avoidance_active = (
+            str((telemetry.get("state") or {}).get("operating_mode", ""))
+            == "OBSTACLE_AVOIDANCE"
+        )
 
-        candidates: list[tuple[float, dict[str, Any], GeometryAssessment, float, float | None, str]] = []
+        candidates: list[
+            tuple[float, dict[str, Any], GeometryAssessment, float, float | None, str]
+        ] = []
         for obstacle in obstacles:
             assessment = self.assess_geometry(obstacle, position, timestamp, snapshot)
             clearance = assessment.surface_distance_m - safety_radius
@@ -308,10 +346,20 @@ class ObstacleInteractionService:
                 velocity[2] - float(obstacle_velocity.get("z", 0.0) or 0.0),
             )
             direction = assessment.direction_to_obstacle
-            closing_speed = relative_v[0] * direction[0] + relative_v[1] * direction[1] + relative_v[2] * direction[2]
-            ttc = clearance / closing_speed if clearance > 0.0 and closing_speed > 1e-6 else None
+            closing_speed = (
+                relative_v[0] * direction[0]
+                + relative_v[1] * direction[1]
+                + relative_v[2] * direction[2]
+            )
+            ttc = (
+                clearance / closing_speed
+                if clearance > 0.0 and closing_speed > 1e-6
+                else None
+            )
             risk = self.classify_risk(clearance, ttc, safety_radius)
-            candidates.append((clearance, obstacle, assessment, closing_speed, ttc, risk))
+            candidates.append(
+                (clearance, obstacle, assessment, closing_speed, ttc, risk)
+            )
 
         candidates.sort(key=lambda item: (item[0], -RISK_ORDER[item[5]]))
         clearance, obstacle, assessment, closing_speed, ttc, risk = candidates[0]
@@ -319,7 +367,9 @@ class ObstacleInteractionService:
             "interaction_id": f"INTERACTION-{uuid4().hex[:12].upper()}",
             "mission_id": mission_id,
             "vehicle_id": str(telemetry.get("vehicle_id", "")),
-            "obstacle_id": str(obstacle.get("obstacle_id", obstacle.get("name", "UNKNOWN"))),
+            "obstacle_id": str(
+                obstacle.get("obstacle_id", obstacle.get("name", "UNKNOWN"))
+            ),
             "telemetry_message_id": str(telemetry.get("message_id", "")),
             "timestamp_utc": str(telemetry.get("timestamp_utc")),
             "detected_at_utc": self._now(),
@@ -335,13 +385,21 @@ class ObstacleInteractionService:
                 "obstacle_name": obstacle.get("name"),
                 "obstacle_type": obstacle.get("obstacle_type"),
                 "geometry_type": (obstacle.get("geometry") or {}).get("geometry_type"),
-                "vehicle_position": {"x_m": position[0], "y_m": position[1], "z_m": position[2]},
+                "vehicle_position": {
+                    "x_m": position[0],
+                    "y_m": position[1],
+                    "z_m": position[2],
+                },
                 "obstacle_position": {
                     "x_m": assessment.obstacle_position[0],
                     "y_m": assessment.obstacle_position[1],
                     "z_m": assessment.obstacle_position[2],
                 },
-                "direction_to_obstacle": {"x": assessment.direction_to_obstacle[0], "y": assessment.direction_to_obstacle[1], "z": assessment.direction_to_obstacle[2]},
+                "direction_to_obstacle": {
+                    "x": assessment.direction_to_obstacle[0],
+                    "y": assessment.direction_to_obstacle[1],
+                    "z": assessment.direction_to_obstacle[2],
+                },
             },
         }
         self._persist(record)
@@ -360,11 +418,22 @@ class ObstacleInteractionService:
                 ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """,
                 (
-                    record["interaction_id"], record["mission_id"], record["vehicle_id"], record["obstacle_id"],
-                    record["telemetry_message_id"], record["timestamp_utc"], record["detected_at_utc"], record["risk_level"],
-                    record["centre_distance_m"], record["clearance_m"], record["time_to_collision_s"],
-                    record["closing_speed_mps"], record["safety_radius_m"], record["obstacle_radius_m"],
-                    int(record["avoidance_active"]), self._json(record["details"]),
+                    record["interaction_id"],
+                    record["mission_id"],
+                    record["vehicle_id"],
+                    record["obstacle_id"],
+                    record["telemetry_message_id"],
+                    record["timestamp_utc"],
+                    record["detected_at_utc"],
+                    record["risk_level"],
+                    record["centre_distance_m"],
+                    record["clearance_m"],
+                    record["time_to_collision_s"],
+                    record["closing_speed_mps"],
+                    record["safety_radius_m"],
+                    record["obstacle_radius_m"],
+                    int(record["avoidance_active"]),
+                    self._json(record["details"]),
                 ),
             )
 
@@ -385,17 +454,31 @@ class ObstacleInteractionService:
                     last_interaction_id=excluded.last_interaction_id,
                     updated_at_utc=excluded.updated_at_utc
                 """,
-                (mission_id, obstacle_id, record["risk_level"], int(record["avoidance_active"]), record["interaction_id"], self._now()),
+                (
+                    mission_id,
+                    obstacle_id,
+                    record["risk_level"],
+                    int(record["avoidance_active"]),
+                    record["interaction_id"],
+                    self._now(),
+                ),
             )
 
         previous_risk = str(previous["last_risk_level"]) if previous else "CLEAR"
         previous_avoidance = bool(previous["avoidance_active"]) if previous else False
-        entered_risk = RISK_ORDER[record["risk_level"]] >= RISK_ORDER["WARNING"] and RISK_ORDER.get(previous_risk, 0) < RISK_ORDER["WARNING"]
+        entered_risk = (
+            RISK_ORDER[record["risk_level"]] >= RISK_ORDER["WARNING"]
+            and RISK_ORDER.get(previous_risk, 0) < RISK_ORDER["WARNING"]
+        )
         entered_avoidance = record["avoidance_active"] and not previous_avoidance
         if not (entered_risk or entered_avoidance):
             return
         event_type = "OBSTACLE_AVOIDANCE" if entered_avoidance else "COLLISION_RISK"
-        severity = "CRITICAL" if record["risk_level"] in {"CRITICAL", "COLLISION"} else "WARNING"
+        severity = (
+            "CRITICAL"
+            if record["risk_level"] in {"CRITICAL", "COLLISION"}
+            else "WARNING"
+        )
         description = (
             f"{event_type.replace('_', ' ').title()} near {record['details'].get('obstacle_name') or obstacle_id}; "
             f"clearance {record['clearance_m']:.2f} m"
@@ -406,7 +489,9 @@ class ObstacleInteractionService:
                 MissionEventCreate(
                     vehicle_id=record["vehicle_id"],
                     event_type=event_type,
-                    start_timestamp_utc=datetime.fromisoformat(record["timestamp_utc"].replace("Z", "+00:00")),
+                    start_timestamp_utc=datetime.fromisoformat(
+                        record["timestamp_utc"].replace("Z", "+00:00")
+                    ),
                     severity=severity,
                     source="SYSTEM",
                     description=description,
@@ -427,7 +512,9 @@ class ObstacleInteractionService:
     def _decode(row: sqlite3.Row) -> dict[str, Any]:
         item = dict(row)
         item["avoidance_active"] = bool(item["avoidance_active"])
-        item["details"] = ObstacleInteractionService._load(item.pop("details_json", "{}"), {})
+        item["details"] = ObstacleInteractionService._load(
+            item.pop("details_json", "{}"), {}
+        )
         return item
 
     def list_interactions(
@@ -441,11 +528,14 @@ class ObstacleInteractionService:
         where: list[str] = []
         params: list[Any] = []
         if mission_id:
-            where.append("mission_id=?"); params.append(mission_id)
+            where.append("mission_id=?")
+            params.append(mission_id)
         if vehicle_id:
-            where.append("vehicle_id=?"); params.append(vehicle_id)
+            where.append("vehicle_id=?")
+            params.append(vehicle_id)
         if risk_level:
-            where.append("risk_level=?"); params.append(risk_level)
+            where.append("risk_level=?")
+            params.append(risk_level)
         sql = "SELECT * FROM obstacle_interactions"
         if where:
             sql += " WHERE " + " AND ".join(where)

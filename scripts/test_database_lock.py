@@ -7,7 +7,9 @@ from pathlib import Path
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Hold an exclusive SQLite lock for OMIP failure testing.")
+    parser = argparse.ArgumentParser(
+        description="Hold an exclusive SQLite lock for OMIP failure testing."
+    )
     parser.add_argument("--database", default="backend/omip_v052.db")
     parser.add_argument("--seconds", type=float, default=15.0)
     args = parser.parse_args()
