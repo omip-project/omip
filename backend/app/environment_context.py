@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from .repositories import ScenarioRepository
 from .schemas import (EnvironmentConstraintCreate, EnvironmentConstraintUpdate,
                       ExternalFieldCreate, ExternalFieldUpdate, ObstacleCreate,
                       ObstacleUpdate, ScenarioCreate, ScenarioUpdate)
@@ -27,6 +28,12 @@ class EnvironmentContextService:
         self.scenarios_dir = Path(scenarios_dir)
         self.scenarios_dir.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
+        self._scenario_repository = ScenarioRepository(
+            connect=self._connect,
+            lock=self._lock,
+            utc_now=lambda: datetime.now(timezone.utc),
+        )
+        self._scenario_repository.initialise()
         self._initialise()
         self.seed_from_files()
 
@@ -59,26 +66,6 @@ class EnvironmentContextService:
     def _initialise(self) -> None:
         with self._connect() as connection:
             connection.executescript("""
-                CREATE TABLE IF NOT EXISTS scenarios (
-                    scenario_id TEXT PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    description TEXT NOT NULL DEFAULT '',
-                    coordinate_frame TEXT NOT NULL DEFAULT 'LOCAL_ENU',
-                    origin_json TEXT NOT NULL DEFAULT '{}',
-                    default_duration_s REAL NOT NULL DEFAULT 60.0,
-                    motion_json TEXT NOT NULL DEFAULT '{}',
-                    obstacle_avoidance_json TEXT NOT NULL DEFAULT '{}',
-                    sensor_rates_hz_json TEXT NOT NULL DEFAULT '{}',
-                    quality_json TEXT NOT NULL DEFAULT '{}',
-                    faults_json TEXT NOT NULL DEFAULT '{}',
-                    metadata_json TEXT NOT NULL DEFAULT '{}',
-                    enabled INTEGER NOT NULL DEFAULT 1,
-                    built_in INTEGER NOT NULL DEFAULT 0,
-                    version INTEGER NOT NULL DEFAULT 1,
-                    created_at_utc TEXT NOT NULL,
-                    updated_at_utc TEXT NOT NULL
-                );
-
                 CREATE TABLE IF NOT EXISTS obstacles (
                     obstacle_id TEXT PRIMARY KEY,
                     scenario_id TEXT NOT NULL,
@@ -159,14 +146,6 @@ class EnvironmentContextService:
                 CREATE INDEX IF NOT EXISTS idx_external_fields_scenario ON external_fields(scenario_id);
                 CREATE INDEX IF NOT EXISTS idx_environment_snapshot_scenario ON mission_environment_snapshots(scenario_id);
                 """)
-            columns = {
-                row["name"]
-                for row in connection.execute("PRAGMA table_info(scenarios)").fetchall()
-            }
-            if "obstacle_avoidance_json" not in columns:
-                connection.execute(
-                    "ALTER TABLE scenarios ADD COLUMN obstacle_avoidance_json TEXT NOT NULL DEFAULT '{}'"
-                )
 
     # ------------------------------------------------------------------
     # Scenario templates
@@ -207,22 +186,13 @@ class EnvironmentContextService:
             )
 
     def list_scenarios(self, enabled_only: bool = False) -> list[dict[str, Any]]:
-        sql = "SELECT * FROM scenarios"
-        params: list[Any] = []
-        if enabled_only:
-            sql += " WHERE enabled = 1"
-        sql += " ORDER BY built_in DESC, name, scenario_id"
-        with self._connect() as connection:
-            rows = connection.execute(sql, params).fetchall()
+        rows = self._scenario_repository.list_rows(enabled_only=enabled_only)
         return [self._decode_scenario(row, include_items=False) for row in rows]
 
     def get_scenario(
         self, scenario_id: str, *, include_items: bool = True
     ) -> dict[str, Any] | None:
-        with self._connect() as connection:
-            row = connection.execute(
-                "SELECT * FROM scenarios WHERE scenario_id = ?", (scenario_id,)
-            ).fetchone()
+        row = self._scenario_repository.get_row(scenario_id)
         if row is None:
             return None
         return self._decode_scenario(row, include_items=include_items)
@@ -247,21 +217,10 @@ class EnvironmentContextService:
             record["constraints"] = self.list_constraints(record["scenario_id"])
             record["external_fields"] = self.list_external_fields(record["scenario_id"])
         else:
-            with self._connect() as connection:
-                counts = connection.execute(
-                    """SELECT
-                       (SELECT COUNT(*) FROM obstacles WHERE scenario_id = ?) AS obstacles,
-                       (SELECT COUNT(*) FROM environment_constraints WHERE scenario_id = ?) AS constraints,
-                       (SELECT COUNT(*) FROM external_fields WHERE scenario_id = ?) AS fields""",
-                    (
-                        record["scenario_id"],
-                        record["scenario_id"],
-                        record["scenario_id"],
-                    ),
-                ).fetchone()
-            record["obstacle_count"] = int(counts["obstacles"])
-            record["constraint_count"] = int(counts["constraints"])
-            record["external_field_count"] = int(counts["fields"])
+            counts = self._scenario_repository.count_items(record["scenario_id"])
+            record["obstacle_count"] = counts["obstacles"]
+            record["constraint_count"] = counts["constraints"]
+            record["external_field_count"] = counts["fields"]
         return record
 
     def upsert_scenario(
@@ -272,62 +231,9 @@ class EnvironmentContextService:
         replace_items: bool = True,
         write_file: bool = True,
     ) -> dict[str, Any]:
-        now = self._now()
-        payload = request.model_dump(mode="json")
-        with self._lock, self._connect() as connection:
-            existing = connection.execute(
-                "SELECT version, created_at_utc FROM scenarios WHERE scenario_id = ?",
-                (request.scenario_id,),
-            ).fetchone()
-            version = int(existing["version"]) + 1 if existing else 1
-            created = existing["created_at_utc"] if existing else now
-            connection.execute(
-                """INSERT INTO scenarios(
-                    scenario_id,name,description,coordinate_frame,origin_json,default_duration_s,
-                    motion_json,obstacle_avoidance_json,sensor_rates_hz_json,quality_json,faults_json,metadata_json,enabled,built_in,
-                    version,created_at_utc,updated_at_utc
-                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-                ON CONFLICT(scenario_id) DO UPDATE SET
-                    name=excluded.name,description=excluded.description,coordinate_frame=excluded.coordinate_frame,
-                    origin_json=excluded.origin_json,default_duration_s=excluded.default_duration_s,
-                    motion_json=excluded.motion_json,obstacle_avoidance_json=excluded.obstacle_avoidance_json,
-                    sensor_rates_hz_json=excluded.sensor_rates_hz_json,quality_json=excluded.quality_json,faults_json=excluded.faults_json,
-                    metadata_json=excluded.metadata_json,enabled=excluded.enabled,
-                    built_in=MAX(scenarios.built_in,excluded.built_in),version=excluded.version,
-                    updated_at_utc=excluded.updated_at_utc""",
-                (
-                    request.scenario_id,
-                    request.name,
-                    request.description,
-                    request.coordinate_frame,
-                    self._json(request.origin),
-                    request.default_duration_s,
-                    self._json(request.motion),
-                    self._json(request.obstacle_avoidance),
-                    self._json(request.sensor_rates_hz),
-                    self._json(request.quality),
-                    self._json(request.faults),
-                    self._json(request.metadata),
-                    int(request.enabled),
-                    int(built_in),
-                    version,
-                    created,
-                    now,
-                ),
-            )
-            if replace_items:
-                connection.execute(
-                    "DELETE FROM obstacles WHERE scenario_id = ?",
-                    (request.scenario_id,),
-                )
-                connection.execute(
-                    "DELETE FROM environment_constraints WHERE scenario_id = ?",
-                    (request.scenario_id,),
-                )
-                connection.execute(
-                    "DELETE FROM external_fields WHERE scenario_id = ?",
-                    (request.scenario_id,),
-                )
+        self._scenario_repository.upsert(request, built_in=built_in)
+        if replace_items:
+            self._scenario_repository.delete_items(request.scenario_id)
         if replace_items:
             for item in request.obstacles:
                 self.create_obstacle(request.scenario_id, item, touch_scenario=False)
@@ -388,21 +294,11 @@ class EnvironmentContextService:
             raise ValueError(
                 "Built-in scenarios cannot be deleted; copy or disable the scenario instead"
             )
-        with self._lock, self._connect() as connection:
-            used = connection.execute(
-                "SELECT COUNT(*) AS c FROM simulation_runs WHERE scenario_id = ?",
-                (scenario_id,),
-            ).fetchone()
-            if used and int(used["c"]) > 0:
-                raise ValueError(
-                    "Scenario is referenced by simulation runs and cannot be deleted"
-                )
-            deleted = (
-                connection.execute(
-                    "DELETE FROM scenarios WHERE scenario_id = ?", (scenario_id,)
-                ).rowcount
-                > 0
+        if self._scenario_repository.simulation_run_count(scenario_id) > 0:
+            raise ValueError(
+                "Scenario is referenced by simulation runs and cannot be deleted"
             )
+        deleted = self._scenario_repository.delete(scenario_id)
         if deleted:
             path = self.scenarios_dir / f"{scenario_id}.json"
             path.unlink(missing_ok=True)
@@ -437,11 +333,7 @@ class EnvironmentContextService:
         return path
 
     def _touch(self, scenario_id: str) -> None:
-        with self._lock, self._connect() as connection:
-            connection.execute(
-                "UPDATE scenarios SET version = version + 1, updated_at_utc = ? WHERE scenario_id = ?",
-                (self._now(), scenario_id),
-            )
+        self._scenario_repository.touch(scenario_id)
 
     # ------------------------------------------------------------------
     # Environment objects
