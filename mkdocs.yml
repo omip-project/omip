@@ -52,7 +52,7 @@ nav:
   - Development:
       - Contributor Guide: development/index.md
   - Roadmap: roadmap.md
-  - FAQ: faq.md
+  - FAQ: FAQ.md
 
 plugins:
   - search
