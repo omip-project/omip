@@ -20,6 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import ValidationError
 
+from .api import create_acquisition_router, create_health_router
 from .config import (BACKUP_DIR, DATABASE_PATH, DEGRADED_THRESHOLD_S,
                      EXPORT_DIR, MQTT_ENABLED, MQTT_HEARTBEAT_TOPIC, MQTT_HOST,
                      MQTT_PORT, MQTT_TELEMETRY_TOPIC, MQTT_TOPIC,
@@ -41,8 +42,7 @@ from .schemas import (AlertActionRequest, AlertStatus, AlertType,
                       EventSeverity, ExportJobCreate, ExternalFieldCreate,
                       ExternalFieldUpdate, IntegrityCheckType, MissionCreate,
                       MissionEnvironmentCapture, MissionEventCreate,
-                      MissionEventUpdate, MissionStatus, MqttControlRequest,
-                      ObstacleCreate, ObstacleUpdate, RawMessageType,
+                      MissionEventUpdate, MissionStatus, ObstacleCreate, ObstacleUpdate, RawMessageType,
                       RawSensorMessage, RetentionPolicyUpdate, ScenarioCreate,
                       ScenarioUpdate, SensorCreate, SensorUpdate,
                       SimulationRunCreate, SimulationRunStopRequest,
@@ -634,56 +634,19 @@ def dashboard() -> FileResponse:
     )
 
 
-@app.get("/api/v1/health")
-def health() -> dict[str, Any]:
-    return {
-        "status": "ok",
-        "service": "omip-platform-api",
-        "version": "0.5.2",
-        "mqtt_enabled": mqtt_runtime.status()["enabled"],
-    }
-
-
-@app.get("/api/v1/acquisition/status")
-def acquisition_status() -> dict[str, Any]:
-    return {
-        "http_ingestion": True,
-        "mqtt": mqtt_runtime.status(),
-        "telemetry_websocket_clients": telemetry_connections.count,
-        "stream_websocket_clients": stream_connections.count,
-        "database_path": str(DATABASE_PATH),
-    }
-
-
-@app.put("/api/v1/acquisition/mqtt")
-async def configure_mqtt(request: MqttControlRequest) -> dict[str, Any]:
-    """Enable, disable or reconfigure the MQTT consumer without restarting OMIP.
-
-    This controls the OMIP MQTT bridge only. An MQTT broker such as Mosquitto
-    must still be running at the configured host and port.
-    """
-    if not request.enabled:
-        mqtt = await mqtt_runtime.disable()
-    else:
-        mqtt = await mqtt_runtime.enable(
-            loop=asyncio.get_running_loop(),
-            handler=_handle_mqtt,
-            host=request.host,
-            port=request.port,
-            raw_topic=request.raw_topic,
-            telemetry_topic=request.telemetry_topic,
-            heartbeat_topic=request.heartbeat_topic,
-        )
-    await stream_connections.broadcast(
-        {"stream_type": "acquisition_status", "data": {"mqtt": mqtt}}
+app.include_router(
+    create_health_router(mqtt_status=lambda: mqtt_runtime.status())
+)
+app.include_router(
+    create_acquisition_router(
+        get_mqtt_runtime=lambda: mqtt_runtime,
+        telemetry_connections=telemetry_connections,
+        stream_connections=stream_connections,
+        database_path=DATABASE_PATH,
+        mqtt_handler=_handle_mqtt,
+        broadcast=stream_connections.broadcast,
     )
-    return {
-        "http_ingestion": True,
-        "mqtt": mqtt,
-        "telemetry_websocket_clients": telemetry_connections.count,
-        "stream_websocket_clients": stream_connections.count,
-        "database_path": str(DATABASE_PATH),
-    }
+)
 
 
 # ---------------------------------------------------------------------------
