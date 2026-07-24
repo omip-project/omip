@@ -1,3 +1,11 @@
+## [1.0.1-foundation] - 2026-07-24
+
+### Fixed
+
+- Changed the default Docker host port from `8000` to `18080`.
+- Improved compatibility with Windows reserved TCP port ranges.
+- Updated README, Quick Start and troubleshooting documentation.
+
 # v0.5.2.1
 
 - Added multi-direction candidate avoidance and all-obstacle validation.
