@@ -1,0 +1,45 @@
+cff-version: 1.2.0
+
+title: Open Mission Intelligence Platform
+
+message: >
+  If you use OMIP in academic work,
+  please cite the software using the metadata in this file.
+
+type: software
+
+authors:
+  - family-names: Huang
+    given-names: Shansong
+
+version: "1.0.0-foundation"
+
+date-released: 2026-07-23
+
+license: MIT
+
+repository-code: https://github.com/omip-project/omip
+
+url: https://github.com/omip-project/omip
+
+abstract: >
+  Open Mission Intelligence Platform (OMIP) is an open-source mission
+  data infrastructure for autonomous systems supporting UGV, UAV,
+  AUV and USV applications. It provides mission management,
+  telemetry acquisition, MQTT integration, replay,
+  environment modelling and research-oriented data analytics.
+
+keywords:
+  - autonomous systems
+  - robotics
+  - telemetry
+  - mission intelligence
+  - UGV
+  - UAV
+  - USV
+  - AUV
+  - MQTT
+  - FastAPI
+  - Docker
+
+license: MIT

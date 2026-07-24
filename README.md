@@ -1904,7 +1904,7 @@ docs/
 ├── QUICK_START.md
 ├── INSTALL.md
 ├── TROUBLESHOOTING.md
-├── faq.md
+├── FAQ.md
 │
 ├── getting-started/
 │   ├── index.md
@@ -1946,7 +1946,7 @@ docs/
 | [`docs/QUICK_START.md`](docs/QUICK_START.md) | Five-minute local deployment |
 | [`docs/INSTALL.md`](docs/INSTALL.md) | Full installation instructions |
 | [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) | Common setup and runtime issues |
-| [`docs/faq.md`](docs/faq.md) | Frequently asked questions |
+| [`docs/FAQ.md`](docs/FAQ.md) | Frequently asked questions |
 | [`docs/getting-started/First-Mission.md`](docs/getting-started/First-Mission.md) | First Demo Mission tutorial |
 | [`docs/architecture/`](docs/architecture/) | Platform architecture |
 | [`docs/deployment/`](docs/deployment/) | Docker and deployment guidance |
