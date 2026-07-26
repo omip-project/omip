@@ -363,7 +363,7 @@ class VehicleProfileUpdate(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Environment context and obstacle-interaction models (v0.5.2)
+# Environment context and obstacle-interaction models
 # ---------------------------------------------------------------------------
 CoordinateFrame = Literal["LOCAL_ENU", "WGS84"]
 GeometryType = Literal["POINT", "CIRCLE", "SPHERE", "BOX", "POLYGON"]

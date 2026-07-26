@@ -19,7 +19,7 @@ from .schemas import (IntegrityFinding, MissionCreate, MissionEventCreate,
 
 
 class OmipRepository:
-    """SQLite persistence for the OMIP v0.5.2 acquisition, integrity and operational monitoring platform."""
+    """SQLite persistence for the OMIP acquisition, integrity and operational monitoring platform."""
 
     def __init__(
         self,
