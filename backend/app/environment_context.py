@@ -9,7 +9,11 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from .repositories import ObstacleRepository, ScenarioRepository
+from .repositories import (
+    ConstraintRepository,
+    ObstacleRepository,
+    ScenarioRepository,
+)
 from .schemas import (EnvironmentConstraintCreate, EnvironmentConstraintUpdate,
                       ExternalFieldCreate, ExternalFieldUpdate, ObstacleCreate,
                       ObstacleUpdate, ScenarioCreate, ScenarioUpdate)
@@ -38,8 +42,14 @@ class EnvironmentContextService:
             lock=self._lock,
             utc_now=lambda: datetime.now(timezone.utc),
         )
+        self._constraint_repository = ConstraintRepository(
+            connect=self._connect,
+            lock=self._lock,
+            utc_now=lambda: datetime.now(timezone.utc),
+        )
         self._scenario_repository.initialise()
         self._obstacle_repository.initialise()
+        self._constraint_repository.initialise()
         self._initialise()
         self.seed_from_files()
 
@@ -72,25 +82,6 @@ class EnvironmentContextService:
     def _initialise(self) -> None:
         with self._connect() as connection:
             connection.executescript("""
-
-                CREATE TABLE IF NOT EXISTS environment_constraints (
-                    constraint_id TEXT PRIMARY KEY,
-                    scenario_id TEXT NOT NULL,
-                    name TEXT NOT NULL,
-                    constraint_type TEXT NOT NULL,
-                    geometry_json TEXT,
-                    value_json TEXT,
-                    unit TEXT NOT NULL DEFAULT '',
-                    severity TEXT NOT NULL,
-                    enabled INTEGER NOT NULL DEFAULT 1,
-                    applies_to_vehicle_types_json TEXT NOT NULL DEFAULT '[]',
-                    applies_to_vehicle_ids_json TEXT NOT NULL DEFAULT '[]',
-                    required_capabilities_json TEXT NOT NULL DEFAULT '[]',
-                    metadata_json TEXT NOT NULL DEFAULT '{}',
-                    created_at_utc TEXT NOT NULL,
-                    updated_at_utc TEXT NOT NULL,
-                    FOREIGN KEY (scenario_id) REFERENCES scenarios(scenario_id) ON DELETE CASCADE
-                );
 
                 CREATE TABLE IF NOT EXISTS external_fields (
                     field_id TEXT PRIMARY KEY,
@@ -126,7 +117,6 @@ class EnvironmentContextService:
                     FOREIGN KEY (mission_id) REFERENCES missions(mission_id) ON DELETE CASCADE
                 );
 
-                CREATE INDEX IF NOT EXISTS idx_constraints_scenario ON environment_constraints(scenario_id);
                 CREATE INDEX IF NOT EXISTS idx_external_fields_scenario ON external_fields(scenario_id);
                 CREATE INDEX IF NOT EXISTS idx_environment_snapshot_scenario ON mission_environment_snapshots(scenario_id);
                 """)
@@ -376,66 +366,17 @@ class EnvironmentContextService:
     ) -> dict[str, Any]:
         self._ensure_scenario(scenario_id)
         item_id = request.constraint_id or self._id("CON")
-        now = self._now()
-        with self._lock, self._connect() as connection:
-            connection.execute(
-                """INSERT INTO environment_constraints VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (
-                    item_id,
-                    scenario_id,
-                    request.name,
-                    request.constraint_type,
-                    (
-                        self._json(request.geometry.model_dump(mode="json"))
-                        if request.geometry
-                        else None
-                    ),
-                    self._json(request.value),
-                    request.unit,
-                    request.severity,
-                    int(request.enabled),
-                    self._json(request.applies_to_vehicle_types),
-                    self._json(request.applies_to_vehicle_ids),
-                    self._json(request.required_capabilities),
-                    self._json(request.metadata),
-                    now,
-                    now,
-                ),
-            )
+        result = self._constraint_repository.create(scenario_id, item_id, request)
         if touch_scenario:
             self._touch(scenario_id)
             self.write_scenario_file(scenario_id)
-        return self.get_constraint(item_id) or {}
+        return result
 
     def list_constraints(self, scenario_id: str) -> list[dict[str, Any]]:
-        with self._connect() as connection:
-            rows = connection.execute(
-                "SELECT * FROM environment_constraints WHERE scenario_id = ? ORDER BY name, constraint_id",
-                (scenario_id,),
-            ).fetchall()
-        return [self._decode_constraint(row) for row in rows]
+        return self._constraint_repository.list_for_scenario(scenario_id)
 
     def get_constraint(self, item_id: str) -> dict[str, Any] | None:
-        with self._connect() as connection:
-            row = connection.execute(
-                "SELECT * FROM environment_constraints WHERE constraint_id = ?",
-                (item_id,),
-            ).fetchone()
-        return self._decode_constraint(row) if row else None
-
-    def _decode_constraint(self, row: sqlite3.Row) -> dict[str, Any]:
-        item = dict(row)
-        item["enabled"] = bool(item["enabled"])
-        for source, target, default in (
-            ("geometry_json", "geometry", None),
-            ("value_json", "value", None),
-            ("applies_to_vehicle_types_json", "applies_to_vehicle_types", []),
-            ("applies_to_vehicle_ids_json", "applies_to_vehicle_ids", []),
-            ("required_capabilities_json", "required_capabilities", []),
-            ("metadata_json", "metadata", {}),
-        ):
-            item[target] = self._load(item.pop(source), default)
-        return item
+        return self._constraint_repository.get(item_id)
 
     def update_constraint(
         self, item_id: str, request: EnvironmentConstraintUpdate
@@ -445,13 +386,12 @@ class EnvironmentContextService:
             return None
         data = {**current, **request.model_dump(exclude_unset=True, mode="json")}
         replacement = EnvironmentConstraintCreate.model_validate(
-            {k: data.get(k) for k in EnvironmentConstraintCreate.model_fields}
+            {
+                key: data.get(key)
+                for key in EnvironmentConstraintCreate.model_fields
+            }
         )
-        with self._lock, self._connect() as connection:
-            connection.execute(
-                "DELETE FROM environment_constraints WHERE constraint_id = ?",
-                (item_id,),
-            )
+        self._constraint_repository.delete(item_id)
         replacement.constraint_id = item_id
         return self.create_constraint(current["scenario_id"], replacement)
 
@@ -459,14 +399,7 @@ class EnvironmentContextService:
         current = self.get_constraint(item_id)
         if current is None:
             return False
-        with self._lock, self._connect() as connection:
-            deleted = (
-                connection.execute(
-                    "DELETE FROM environment_constraints WHERE constraint_id = ?",
-                    (item_id,),
-                ).rowcount
-                > 0
-            )
+        deleted = self._constraint_repository.delete(item_id)
         if deleted:
             self._touch(current["scenario_id"])
             self.write_scenario_file(current["scenario_id"])
