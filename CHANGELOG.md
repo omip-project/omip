@@ -1,3 +1,19 @@
+## [1.1.0] - 2026-07-26
+
+### Release
+
+- Promoted OMIP v1.1.0-rc1 to the stable v1.1.0 release.
+- Completed repository-layer architecture validation.
+- Updated backend, simulator, health API and Operations Console identities.
+- Added final v1.1.0 release documentation.
+
+### Compatibility
+
+- No breaking API changes.
+- No database migration required.
+- Existing schema version remains 0.5.2.
+- Existing Docker, MQTT, dashboard and simulator workflows are preserved.
+
 ## [1.1.0-rc1] - 2026-07-26
 
 ### Added

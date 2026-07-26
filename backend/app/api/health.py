@@ -25,7 +25,7 @@ def create_health_router(
         return {
             "status": "ok",
             "service": "omip-platform-api",
-            "version": "1.1.0-rc1",
+            "version": "1.1.0",
             "mqtt_enabled": mqtt_status()["enabled"],
         }
 
