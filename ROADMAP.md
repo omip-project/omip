@@ -2,6 +2,33 @@
 
 This roadmap describes capability goals rather than fixed delivery dates.
 
+## v1.1 Core Architecture
+
+### Completed
+
+- [x] API router separation
+- [x] Vehicle profile repository
+- [x] Scenario repository
+- [x] Obstacle repository
+- [x] Constraint repository
+- [x] External field repository
+- [x] Mission environment snapshot repository
+- [x] v1.1.0 release-candidate identity
+
+### Deferred
+
+- [ ] Mission service extraction
+- [ ] Shared repository JSON serialization
+- [ ] Expanded direct repository unit-test coverage
+
+### Release preparation
+
+- [x] Version and identity update
+- [x] Changelog and release notes
+- [ ] Full regression validation
+- [ ] Release candidate tag
+- [ ] Final v1.1.0 release
+
 ## Foundation v1.0
 
 - Professional repository homepage

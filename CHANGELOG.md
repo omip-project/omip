@@ -1,3 +1,37 @@
+## [1.1.0-rc1] - 2026-07-26
+
+### Added
+
+- Added API router separation for health and acquisition endpoints.
+- Added a dedicated repository layer for vehicle profiles.
+- Added `ScenarioRepository`.
+- Added `ObstacleRepository`.
+- Added `ConstraintRepository`.
+- Added `ExternalFieldRepository`.
+- Added `MissionEnvironmentSnapshotRepository`.
+
+### Changed
+
+- Refactored environment persistence out of `EnvironmentContextService`.
+- Delegated scenario, obstacle, constraint, external-field and mission-snapshot
+  database operations to dedicated repositories.
+- Updated runtime identity to OMIP v1.1.0-rc1.
+- Preserved existing API paths, database schema and MQTT behaviour.
+
+### Compatibility
+
+- No breaking API changes.
+- No database migration required.
+- Existing Docker Compose workflow remains supported.
+- Existing simulator and dashboard workflows remain supported.
+
+### Known Issues
+
+- The safety analytics test fixture may require a valid
+  `geometry_type` when supplying constraint geometry.
+- Shared JSON serialization remains implemented in individual repositories
+  and may be consolidated in a future maintenance release.
+
 ## [1.0.1-foundation] - 2026-07-24
 
 ### Fixed

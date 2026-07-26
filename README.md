@@ -631,6 +631,12 @@ OMIP is intended to support future integration with:
 
 OMIP uses a layered architecture.
 
+OMIP v1.1 introduces dedicated repositories for vehicle profiles, scenarios,
+obstacles, constraints, external fields and mission environment snapshots.
+
+The repository layer isolates SQLite persistence from environment-domain
+orchestration while preserving the existing API and runtime workflows.
+
 ```text
 ┌────────────────────────────────────────────────────────────┐
 │                   Vehicles and Simulators                  │
@@ -2759,6 +2765,9 @@ Publish GitHub Release
 ---
 
 ## Versioning
+**Current release candidate:** `v1.1.0-rc1`
+
+**Latest stable release:** `v1.0.1`
 
 Recommended semantic versioning:
 
