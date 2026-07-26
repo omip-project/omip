@@ -1043,13 +1043,13 @@ def register_platform(
         "vehicle_name": f"Simulated vehicle {vehicle_id}",
         "vehicle_type": vehicle_type,
         "manufacturer": "OMIP",
-        "model": "Multi-Sensor Simulator v0.5.2",
+        "model": "Multi-Sensor Simulator v1.1.0-rc1",
         "description": scenario.get("description", ""),
         "vehicle_profile_id": profile["profile_id"],
         "capabilities": profile.get("capabilities", {}),
         "parameters": effective_parameters,
         "metadata": {
-            "simulator": "v0.5.2",
+            "simulator": "v1.1.0-rc1",
             "profile_name": profile.get("profile_name"),
         },
     }
@@ -1101,7 +1101,7 @@ def register_platform(
         "metadata": {
             "transport": "multi-sensor",
             "schema_version": "0.5.2",
-            "simulator_version": "0.5.2",
+            "simulator_version": "1.1.0-rc1",
             "simulation_run_id": simulation_run_id,
             "vehicle_type": vehicle_type,
             "vehicle_profile_id": profile["profile_id"],
@@ -1242,7 +1242,7 @@ def transition_mission_with_retry(
 def parse_args() -> argparse.Namespace:
     project_dir = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(
-        description="OMIP v0.5.2.1 collision-safe multi-sensor simulator"
+        description="description": "OMIP v1.1.0-rc1 collision-safe multi-sensor simulator"
     )
     parser.add_argument("--api-base", default="http://127.0.0.1:8000")
     parser.add_argument("--vehicle-id", default="OMIP-SIM-001")
@@ -1365,7 +1365,7 @@ def main() -> int:
         signal.signal(signal.SIGTERM, _request_stop)
 
     duration_text = "continuous" if continuous else f"{duration:.1f}s"
-    print("OMIP v0.5.2 simulator started")
+    print("OMIP v1.1.0-rc1 simulator started")
     print(f"  Vehicle:   {args.vehicle_id}")
     print(f"  Type:      {args.vehicle_type}")
     print(f"  Profile:   {args.vehicle_profile}")

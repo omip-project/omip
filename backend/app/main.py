@@ -556,7 +556,7 @@ async def lifespan(app: FastAPI):
     _obstacle_interaction_service()
     _safety_analytics_service()
     await _application_log(
-        "INFO", "SYSTEM", "SERVICE_START", "OMIP v0.5.2 service started."
+        "INFO", "SYSTEM", "SERVICE_START", "OMIP v1.1.0-rc1 service started."
     )
     if MQTT_ENABLED:
         status = await mqtt_runtime.enable(
@@ -578,13 +578,13 @@ async def lifespan(app: FastAPI):
         await mqtt_runtime.disable()
         _simulation_manager().stop_all()
         await _application_log(
-            "INFO", "SYSTEM", "SERVICE_STOP", "OMIP v0.5.2 service stopped."
+            "INFO", "SYSTEM", "SERVICE_STOP", "OMIP v1.1.0-rc1 service stopped."
         )
 
 
 app = FastAPI(
     title="OMIP Platform API",
-    version="0.5.2",
+    version="1.1.0-rc1",
     description=(
         "Multi-vehicle acquisition platform with data-integrity detection, runtime system metrics, "
         "component health monitoring, structured application logs, platform alerts, MQTT control, "
