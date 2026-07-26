@@ -11,6 +11,7 @@ from uuid import uuid4
 
 from .repositories import (
     ConstraintRepository,
+    ExternalFieldRepository,
     ObstacleRepository,
     ScenarioRepository,
 )
@@ -47,9 +48,15 @@ class EnvironmentContextService:
             lock=self._lock,
             utc_now=lambda: datetime.now(timezone.utc),
         )
+        self._external_field_repository = ExternalFieldRepository(
+            connect=self._connect,
+            lock=self._lock,
+            utc_now=lambda: datetime.now(timezone.utc),
+        )
         self._scenario_repository.initialise()
         self._obstacle_repository.initialise()
         self._constraint_repository.initialise()
+        self._external_field_repository.initialise()
         self._initialise()
         self.seed_from_files()
 
@@ -83,28 +90,6 @@ class EnvironmentContextService:
         with self._connect() as connection:
             connection.executescript("""
 
-                CREATE TABLE IF NOT EXISTS external_fields (
-                    field_id TEXT PRIMARY KEY,
-                    scenario_id TEXT NOT NULL,
-                    name TEXT NOT NULL,
-                    field_type TEXT NOT NULL,
-                    geometry_json TEXT,
-                    coordinate_frame TEXT NOT NULL,
-                    vector_json TEXT,
-                    scalar_value REAL,
-                    unit TEXT NOT NULL DEFAULT '',
-                    valid_from_utc TEXT,
-                    valid_to_utc TEXT,
-                    enabled INTEGER NOT NULL DEFAULT 1,
-                    applies_to_vehicle_types_json TEXT NOT NULL DEFAULT '[]',
-                    applies_to_vehicle_ids_json TEXT NOT NULL DEFAULT '[]',
-                    required_capabilities_json TEXT NOT NULL DEFAULT '[]',
-                    metadata_json TEXT NOT NULL DEFAULT '{}',
-                    created_at_utc TEXT NOT NULL,
-                    updated_at_utc TEXT NOT NULL,
-                    FOREIGN KEY (scenario_id) REFERENCES scenarios(scenario_id) ON DELETE CASCADE
-                );
-
                 CREATE TABLE IF NOT EXISTS mission_environment_snapshots (
                     mission_id TEXT PRIMARY KEY,
                     scenario_id TEXT NOT NULL,
@@ -117,7 +102,6 @@ class EnvironmentContextService:
                     FOREIGN KEY (mission_id) REFERENCES missions(mission_id) ON DELETE CASCADE
                 );
 
-                CREATE INDEX IF NOT EXISTS idx_external_fields_scenario ON external_fields(scenario_id);
                 CREATE INDEX IF NOT EXISTS idx_environment_snapshot_scenario ON mission_environment_snapshots(scenario_id);
                 """)
 
@@ -414,72 +398,21 @@ class EnvironmentContextService:
     ) -> dict[str, Any]:
         self._ensure_scenario(scenario_id)
         item_id = request.field_id or self._id("FIELD")
-        now = self._now()
-        with self._lock, self._connect() as connection:
-            connection.execute(
-                """INSERT INTO external_fields VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (
-                    item_id,
-                    scenario_id,
-                    request.name,
-                    request.field_type,
-                    (
-                        self._json(request.geometry.model_dump(mode="json"))
-                        if request.geometry
-                        else None
-                    ),
-                    request.coordinate_frame,
-                    (
-                        self._json(request.vector.model_dump(mode="json"))
-                        if request.vector
-                        else None
-                    ),
-                    request.scalar_value,
-                    request.unit,
-                    str(request.valid_from_utc) if request.valid_from_utc else None,
-                    str(request.valid_to_utc) if request.valid_to_utc else None,
-                    int(request.enabled),
-                    self._json(request.applies_to_vehicle_types),
-                    self._json(request.applies_to_vehicle_ids),
-                    self._json(request.required_capabilities),
-                    self._json(request.metadata),
-                    now,
-                    now,
-                ),
-            )
+        result = self._external_field_repository.create(
+            scenario_id,
+            item_id,
+            request,
+        )
         if touch_scenario:
             self._touch(scenario_id)
             self.write_scenario_file(scenario_id)
-        return self.get_external_field(item_id) or {}
+        return result
 
     def list_external_fields(self, scenario_id: str) -> list[dict[str, Any]]:
-        with self._connect() as connection:
-            rows = connection.execute(
-                "SELECT * FROM external_fields WHERE scenario_id = ? ORDER BY name, field_id",
-                (scenario_id,),
-            ).fetchall()
-        return [self._decode_external_field(row) for row in rows]
+        return self._external_field_repository.list_for_scenario(scenario_id)
 
     def get_external_field(self, item_id: str) -> dict[str, Any] | None:
-        with self._connect() as connection:
-            row = connection.execute(
-                "SELECT * FROM external_fields WHERE field_id = ?", (item_id,)
-            ).fetchone()
-        return self._decode_external_field(row) if row else None
-
-    def _decode_external_field(self, row: sqlite3.Row) -> dict[str, Any]:
-        item = dict(row)
-        item["enabled"] = bool(item["enabled"])
-        for source, target, default in (
-            ("geometry_json", "geometry", None),
-            ("vector_json", "vector", None),
-            ("applies_to_vehicle_types_json", "applies_to_vehicle_types", []),
-            ("applies_to_vehicle_ids_json", "applies_to_vehicle_ids", []),
-            ("required_capabilities_json", "required_capabilities", []),
-            ("metadata_json", "metadata", {}),
-        ):
-            item[target] = self._load(item.pop(source), default)
-        return item
+        return self._external_field_repository.get(item_id)
 
     def update_external_field(
         self, item_id: str, request: ExternalFieldUpdate
@@ -489,12 +422,9 @@ class EnvironmentContextService:
             return None
         data = {**current, **request.model_dump(exclude_unset=True, mode="json")}
         replacement = ExternalFieldCreate.model_validate(
-            {k: data.get(k) for k in ExternalFieldCreate.model_fields}
+            {key: data.get(key) for key in ExternalFieldCreate.model_fields}
         )
-        with self._lock, self._connect() as connection:
-            connection.execute(
-                "DELETE FROM external_fields WHERE field_id = ?", (item_id,)
-            )
+        self._external_field_repository.delete(item_id)
         replacement.field_id = item_id
         return self.create_external_field(current["scenario_id"], replacement)
 
@@ -502,13 +432,7 @@ class EnvironmentContextService:
         current = self.get_external_field(item_id)
         if current is None:
             return False
-        with self._lock, self._connect() as connection:
-            deleted = (
-                connection.execute(
-                    "DELETE FROM external_fields WHERE field_id = ?", (item_id,)
-                ).rowcount
-                > 0
-            )
+        deleted = self._external_field_repository.delete(item_id)
         if deleted:
             self._touch(current["scenario_id"])
             self.write_scenario_file(current["scenario_id"])
