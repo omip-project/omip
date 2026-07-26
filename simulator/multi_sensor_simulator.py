@@ -1242,7 +1242,7 @@ def transition_mission_with_retry(
 def parse_args() -> argparse.Namespace:
     project_dir = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(
-        description="description": "OMIP v1.1.0-rc1 collision-safe multi-sensor simulator"
+        description="OMIP v1.1.0-rc1 collision-safe multi-sensor simulator"
     )
     parser.add_argument("--api-base", default="http://127.0.0.1:8000")
     parser.add_argument("--vehicle-id", default="OMIP-SIM-001")
