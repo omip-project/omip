@@ -25,9 +25,9 @@ This roadmap describes capability goals rather than fixed delivery dates.
 
 - [x] Version and identity update
 - [x] Changelog and release notes
-- [ ] Full regression validation
-- [ ] Release candidate tag
-- [ ] Final v1.1.0 release
+- [x] Full regression validation
+- [x] Release candidate tag
+- [x] Final v1.1.0 release
 
 ## Foundation v1.0
 

@@ -2765,9 +2765,7 @@ Publish GitHub Release
 ---
 
 ## Versioning
-**Current release candidate:** `v1.1.0-rc1`
-
-**Latest stable release:** `v1.0.1`
+**Latest stable release:** `v1.1.0`
 
 Recommended semantic versioning:
 
