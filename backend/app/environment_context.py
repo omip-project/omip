@@ -12,6 +12,7 @@ from uuid import uuid4
 from .repositories import (
     ConstraintRepository,
     ExternalFieldRepository,
+    MissionEnvironmentSnapshotRepository,
     ObstacleRepository,
     ScenarioRepository,
 )
@@ -53,11 +54,18 @@ class EnvironmentContextService:
             lock=self._lock,
             utc_now=lambda: datetime.now(timezone.utc),
         )
+        self._mission_environment_snapshot_repository = (
+            MissionEnvironmentSnapshotRepository(
+                connect=self._connect,
+                lock=self._lock,
+                utc_now=lambda: datetime.now(timezone.utc),
+            )
+        )
         self._scenario_repository.initialise()
         self._obstacle_repository.initialise()
         self._constraint_repository.initialise()
         self._external_field_repository.initialise()
-        self._initialise()
+        self._mission_environment_snapshot_repository.initialise()
         self.seed_from_files()
 
     def _connect(self) -> sqlite3.Connection:
@@ -85,25 +93,6 @@ class EnvironmentContextService:
     @staticmethod
     def _id(prefix: str) -> str:
         return f"{prefix}-{uuid4().hex[:10].upper()}"
-
-    def _initialise(self) -> None:
-        with self._connect() as connection:
-            connection.executescript("""
-
-                CREATE TABLE IF NOT EXISTS mission_environment_snapshots (
-                    mission_id TEXT PRIMARY KEY,
-                    scenario_id TEXT NOT NULL,
-                    scenario_version INTEGER NOT NULL,
-                    vehicle_id TEXT NOT NULL,
-                    vehicle_type TEXT NOT NULL,
-                    snapshot_json TEXT NOT NULL,
-                    sha256 TEXT NOT NULL,
-                    created_at_utc TEXT NOT NULL,
-                    FOREIGN KEY (mission_id) REFERENCES missions(mission_id) ON DELETE CASCADE
-                );
-
-                CREATE INDEX IF NOT EXISTS idx_environment_snapshot_scenario ON mission_environment_snapshots(scenario_id);
-                """)
 
     # ------------------------------------------------------------------
     # Scenario templates
@@ -519,22 +508,16 @@ class EnvironmentContextService:
         }
         canonical = self._json(snapshot).encode("utf-8")
         digest = hashlib.sha256(canonical).hexdigest()
-        with self._lock, self._connect() as connection:
-            connection.execute(
-                """INSERT OR REPLACE INTO mission_environment_snapshots(
-                    mission_id,scenario_id,scenario_version,vehicle_id,vehicle_type,snapshot_json,sha256,created_at_utc
-                ) VALUES(?,?,?,?,?,?,?,?)""",
-                (
-                    mission_id,
-                    scenario_id,
-                    int(scenario["version"]),
-                    vehicle_id,
-                    vehicle_type,
-                    canonical.decode("utf-8"),
-                    digest,
-                    self._now(),
-                ),
-            )
+        self._mission_environment_snapshot_repository.save(
+            mission_id=mission_id,
+            scenario_id=scenario_id,
+            scenario_version=int(scenario["version"]),
+            vehicle_id=vehicle_id,
+            vehicle_type=vehicle_type,
+            snapshot_json=canonical.decode("utf-8"),
+            sha256=digest,
+            created_at_utc=self._now(),
+        )
         snapshot["sha256"] = digest
         return snapshot
 
@@ -616,35 +599,20 @@ class EnvironmentContextService:
         }
         canonical = self._json(snapshot).encode("utf-8")
         digest = hashlib.sha256(canonical).hexdigest()
-        with self._lock, self._connect() as connection:
-            connection.execute(
-                """INSERT OR REPLACE INTO mission_environment_snapshots(
-                    mission_id,scenario_id,scenario_version,vehicle_id,vehicle_type,snapshot_json,sha256,created_at_utc
-                ) VALUES(?,?,?,?,?,?,?,?)""",
-                (
-                    mission_id,
-                    snapshot["scenario_id"],
-                    snapshot["version"],
-                    vehicle_id,
-                    vehicle_type,
-                    canonical.decode("utf-8"),
-                    digest,
-                    self._now(),
-                ),
-            )
+        self._mission_environment_snapshot_repository.save(
+            mission_id=mission_id,
+            scenario_id=snapshot["scenario_id"],
+            scenario_version=int(snapshot["version"]),
+            vehicle_id=vehicle_id,
+            vehicle_type=vehicle_type,
+            snapshot_json=canonical.decode("utf-8"),
+            sha256=digest,
+            created_at_utc=self._now(),
+        )
         snapshot["sha256"] = digest
         return snapshot
 
     def get_mission_environment(self, mission_id: str) -> dict[str, Any] | None:
-        with self._connect() as connection:
-            row = connection.execute(
-                "SELECT * FROM mission_environment_snapshots WHERE mission_id = ?",
-                (mission_id,),
-            ).fetchone()
-        if row is None:
-            return None
-        snapshot = self._load(row["snapshot_json"], {})
-        snapshot["sha256"] = row["sha256"]
-        snapshot["scenario_version"] = row["scenario_version"]
-        snapshot["created_at_utc"] = row["created_at_utc"]
-        return snapshot
+        return self._mission_environment_snapshot_repository.get_by_mission_id(
+            mission_id
+        )
